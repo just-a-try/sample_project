@@ -4,5 +4,5 @@ This project is created to know how to use github
 Now i have created a new branch 
 Now i have created a new issue regarding adding author name to ReadMe file.
 
-* Authors Name:
+## Authors Name:
   Ramson Jehu K
