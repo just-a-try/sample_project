@@ -16,5 +16,4 @@ jobs:
         echo Add other actions to build,
         echo test, and deploy your project.
     - name: action-cpp-lint
-    - uses: CyberZHG/github-action-cpp-lint@0.0.2
-
+      uses: CyberZHG/github-action-cpp-lint@0.0.2
