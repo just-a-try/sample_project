@@ -34,8 +34,6 @@ bool string_validation(char *employee_name)
 struct employee* add_employee(struct employee *employee_ptr,
 	                            int *employee_count)
 {
-	bool validation=false;
-	int name_lenght,indexOfchar=0;
 	if(employee_ptr==NULL)
 		{
 				employee_ptr=(struct employee *)malloc(1*sizeof(struct employee));
@@ -102,15 +100,13 @@ struct employee* add_employee(struct employee *employee_ptr,
 void display_employee_details(struct employee *employee_ptr)
 {
  	int index;
-	printf("size of employee =%d\n",sizeof(struct employee));
-	printf("size of employee ptr =%d\n",sizeof(employee_ptr));
-	// for(index=0;index<employee_count;index++)
-	// {
-	//  	printf("NAME        :%s\n", employee_ptr[index].employee_name);
-	//  	printf("ID          :%d\n", employee_ptr[index].employee_id);
-	//  	printf("AGE         :%d\n", employee_ptr[index].employee_age);
-	//  	printf("DESIGNATION :%s\n\n", employee_ptr[index].employee_designation);
-  // }
+	for(index=0;index<employee_count;index++)
+	{
+	 	printf("NAME        :%s\n", employee_ptr[index].employee_name);
+	 	printf("ID          :%d\n", employee_ptr[index].employee_id);
+	 	printf("AGE         :%d\n", employee_ptr[index].employee_age);
+	 	printf("DESIGNATION :%s\n\n", employee_ptr[index].employee_designation);
+  }
 }
 
 void sort_byname(struct employee *employee_ptr,int employee_count) //remove the temp argument
