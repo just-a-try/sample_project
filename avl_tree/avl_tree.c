@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "avl_tree.h"
+#define INITIAL_SPACE_COUNT 0
 struct avl_node* createNode(int value)
 {
       struct avl_node* root=(struct avl_node*)malloc(sizeof(struct avl_node));
@@ -28,6 +29,7 @@ struct avl_node* insertNode(struct avl_node* root,int value)
       }
       else
       {
+          printf("\n !! Given element is already present in the tree !! \n");
           return root;
       }
       root->degree=1 + maximum(degree(root->left_ptr),degree(root->right_ptr));
@@ -50,12 +52,16 @@ struct avl_node* insertNode(struct avl_node* root,int value)
           root->right_ptr=rightRotate(root->right_ptr);
           return leftRotate(root);
       }
-
       return root;
 }
 
 struct avl_node* deleteNode(struct avl_node* root,int value)
 {
+      if(!searchElement(root,value))
+      {
+          printf("\n!! Given element is not present !!\n");
+          return root;
+      }
       if(!root)
       {
           return root;
@@ -78,20 +84,23 @@ struct avl_node* deleteNode(struct avl_node* root,int value)
                 {
                     temp=root;
                     root=NULL;
+                    printf("Elemnet is deleted \n");
                 }
                 else
                 {
                     *root=*temp;
                     free(temp);
+                    printf("Elemnet is deleted \n");
                 }
             }
-        else
-        {
-            struct avl_node* temp=getMinimumNode(root->right_ptr);
-            root->data=temp->data;
-            root->right_ptr=deleteNode(root->right_ptr,temp->data);
-        }
+            else
+            {
+                struct avl_node* temp=getMinimumNode(root->right_ptr);
+                root->data=temp->data;
+                root->right_ptr=deleteNode(root->right_ptr,temp->data);
+            }
       }
+
       if(!root)
       {
           return root;
@@ -120,28 +129,28 @@ struct avl_node* deleteNode(struct avl_node* root,int value)
 }
 struct avl_node* leftRotate(struct avl_node* temp_node)
 {
-  struct avl_node* mid_node=temp_node->right_ptr;
-  struct avl_node* left_node=temp_node;
-  left_node->right_ptr=mid_node->left_ptr;
-  mid_node->left_ptr=left_node;
-  mid_node->degree=1 + maximum(degree(mid_node->left_ptr),
-                               degree(mid_node->right_ptr));
-  left_node->degree=1 + maximum(degree(left_node->left_ptr),
-                                degree(left_node->right_ptr));
-  return mid_node;
+    struct avl_node* mid_node=temp_node->right_ptr;
+    struct avl_node* left_node=mid_node->left_ptr;
+    mid_node->left_ptr=temp_node;
+    temp_node->right_ptr=left_node;
+    temp_node->degree=1 + maximum(degree(temp_node->left_ptr),
+                               degree(temp_node->right_ptr));
+    mid_node->degree=1 + maximum(degree(mid_node->left_ptr),
+                                degree(mid_node->right_ptr));
+    return mid_node;
 }
 
 struct avl_node* rightRotate(struct avl_node* temp_node)
 {
-  struct avl_node* mid_node=temp_node->left_ptr;
-  struct avl_node* right_node=temp_node;
-  right_node->left_ptr=mid_node->right_ptr;
-  mid_node->right_ptr=right_node;
-  mid_node->degree=1 + maximum(degree(mid_node->left_ptr),
+    struct avl_node* mid_node=temp_node->left_ptr;
+    struct avl_node* right_node=mid_node->right_ptr;
+    mid_node->right_ptr=temp_node;
+    temp_node->left_ptr=right_node;
+    temp_node->degree=1 + maximum(degree(temp_node->left_ptr),
+                                 degree(temp_node->right_ptr));
+    mid_node->degree=1 + maximum(degree(mid_node->left_ptr),
                                degree(mid_node->right_ptr));
-  right_node->degree=1 + maximum(degree(right_node->left_ptr),
-                                 degree(right_node->right_ptr));
-  return mid_node;
+    return mid_node;
 }
 
 struct avl_node* getMinimumNode(struct avl_node* root)
@@ -152,6 +161,7 @@ struct avl_node* getMinimumNode(struct avl_node* root)
     }
     return root;
 }
+
 int balance(struct avl_node* root)
 {
     if(root==NULL)
@@ -161,24 +171,31 @@ int balance(struct avl_node* root)
     return (degree(root->left_ptr)-degree(root->right_ptr));
 }
 
-int degree(struct avl_node* root)
+int degree(struct avl_node  *root)
 {
-  return ((root==NULL)? 0 : root->degree);
+    return ((root==NULL)? 0 : root->degree);
 }
 
 int maximum(int left_degree,int right_degree)
 {
-  return (left_degree>right_degree)? left_degree : right_degree;
+    return (left_degree>right_degree)? left_degree : right_degree;
 }
-void displayTree(struct avl_node * root)
+void displayTree(struct avl_node * root,int space_count)
 {
     if(!root)
     {
         return;
     }
-    displayTree(root->left_ptr);
+    space_count=space_count+1;
+    displayTree(root->right_ptr,space_count);
+    for(int temp=space_count;temp>1;temp--)
+    {
+        printf("   ");
+    }
     printf("%d\t",root->data);
-    displayTree(root->right_ptr);
+    printf("\n");
+    space_count--;
+    displayTree(root->left_ptr,space_count+1);
 }
 bool searchElement(struct avl_node * root,int value)
 {
@@ -195,7 +212,6 @@ bool searchElement(struct avl_node * root,int value)
                 return true;
             }
             root=(value>root->data)?root->right_ptr:root->left_ptr;
-
         }
     }
     return false;
@@ -205,7 +221,7 @@ bool numberValidation()
     if(getchar()!='\n')
     {
         while(getchar()!='\n');
-        printf("\nEnter valid Number\n");
+        printf("\nEnter valid number\n");
     }
     else
     {
@@ -256,8 +272,8 @@ int main()
       case 3:
             if(root)
             {
-                printf("Nodes present : ");
-                displayTree(root);
+                printf("Nodes present : \n");
+                displayTree(root,INITIAL_SPACE_COUNT);
             }
             else
             {
@@ -284,7 +300,7 @@ int main()
             loop_run=false;
             break;
       default:
-            printf("enter the right choice\n");
+            printf("enter the valid choice\n");
             break;
     }
     }

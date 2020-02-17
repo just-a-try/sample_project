@@ -10,7 +10,7 @@ bool numberValidation();
 struct avl_node* createNode(int);
 struct avl_node* insertNode(struct avl_node *,int);
 struct avl_node* deleteNode(struct avl_node *,int);
-void displayTree(struct avl_node*);
+void displayTree(struct avl_node*,int);
 bool searchElement(struct avl_node * root,int);
 int degree(struct avl_node*);
 int maximum(int,int);
