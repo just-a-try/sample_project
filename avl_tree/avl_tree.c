@@ -2,17 +2,41 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "avl_tree.h"
+// macro passed a as argument to display function for initial space count
 #define INITIAL_SPACE_COUNT 0
+enum menu{INSERT_NODE=1,DELETE_NODE,DISPLAY_TREE,SEARCH_ELEMENT,EXIT};
+
+// Function to create new node
 struct avl_node* createNode(int value)
 {
       struct avl_node* root=(struct avl_node*)malloc(sizeof(struct avl_node));
       root->data=value;
       root->left_ptr=NULL;
       root->right_ptr=NULL;
-      root->degree=1;
       return root;
 }
-
+//Function to get the max height of the given node
+int height(struct avl_node *root)
+{
+    if(!root)
+    {
+        return 0;
+    }
+    else
+    {
+        int height_left=height(root->left_ptr);
+        int height_right=height(root->right_ptr);
+        if(height_left>height_right)
+        {
+            return height_left+1;
+        }
+        else
+        {
+            return height_right+1;
+        }
+    }
+}
+// Function to insert a node with balancing conditions
 struct avl_node* insertNode(struct avl_node* root,int value)
 {
       if(root==NULL)
@@ -32,8 +56,11 @@ struct avl_node* insertNode(struct avl_node* root,int value)
           printf("\n !! Given element is already present in the tree !! \n");
           return root;
       }
-      root->degree=1 + maximum(degree(root->left_ptr),degree(root->right_ptr));
+
+// Getting the balance factor of the current node
       int balance_factor=balance(root);
+
+// avl balancing rotations
       if(balance_factor > 1 && value < root->left_ptr->data)
       {
           return rightRotate(root);
@@ -55,6 +82,7 @@ struct avl_node* insertNode(struct avl_node* root,int value)
       return root;
 }
 
+// Function to delete a node with balancing conditions
 struct avl_node* deleteNode(struct avl_node* root,int value)
 {
       if(!searchElement(root,value))
@@ -84,6 +112,7 @@ struct avl_node* deleteNode(struct avl_node* root,int value)
                 {
                     temp=root;
                     root=NULL;
+                    free(temp);
                     printf("Elemnet is deleted \n");
                 }
                 else
@@ -105,8 +134,11 @@ struct avl_node* deleteNode(struct avl_node* root,int value)
       {
           return root;
       }
-      root->degree=1 + maximum(degree(root->left_ptr),degree(root->right_ptr));
+
+// Getting the balance factor of the current node
       int balance_factor=balance(root);
+
+// avl balancing rotations
       if(balance_factor < -1 && balance(root->right_ptr)>0)
       {
           root->right_ptr=rightRotate(root->right_ptr);
@@ -127,32 +159,28 @@ struct avl_node* deleteNode(struct avl_node* root,int value)
       }
       return root;
 }
+
+// Function for avl tree left rotation
 struct avl_node* leftRotate(struct avl_node* temp_node)
 {
     struct avl_node* mid_node=temp_node->right_ptr;
     struct avl_node* left_node=mid_node->left_ptr;
     mid_node->left_ptr=temp_node;
     temp_node->right_ptr=left_node;
-    temp_node->degree=1 + maximum(degree(temp_node->left_ptr),
-                               degree(temp_node->right_ptr));
-    mid_node->degree=1 + maximum(degree(mid_node->left_ptr),
-                                degree(mid_node->right_ptr));
     return mid_node;
 }
 
+// Function for avl tree right rotation
 struct avl_node* rightRotate(struct avl_node* temp_node)
 {
     struct avl_node* mid_node=temp_node->left_ptr;
     struct avl_node* right_node=mid_node->right_ptr;
     mid_node->right_ptr=temp_node;
     temp_node->left_ptr=right_node;
-    temp_node->degree=1 + maximum(degree(temp_node->left_ptr),
-                                 degree(temp_node->right_ptr));
-    mid_node->degree=1 + maximum(degree(mid_node->left_ptr),
-                               degree(mid_node->right_ptr));
     return mid_node;
 }
 
+// Function to get the minimum node for replacing in deletion
 struct avl_node* getMinimumNode(struct avl_node* root)
 {
     while(root->left_ptr!=NULL)
@@ -162,24 +190,17 @@ struct avl_node* getMinimumNode(struct avl_node* root)
     return root;
 }
 
+// Function to get the balance factor of the given node
 int balance(struct avl_node* root)
 {
     if(root==NULL)
     {
         return 0;
     }
-    return (degree(root->left_ptr)-degree(root->right_ptr));
+    return (height(root->left_ptr)-height(root->right_ptr));
 }
 
-int degree(struct avl_node  *root)
-{
-    return ((root==NULL)? 0 : root->degree);
-}
-
-int maximum(int left_degree,int right_degree)
-{
-    return (left_degree>right_degree)? left_degree : right_degree;
-}
+// Function to display the nodes present like tree
 void displayTree(struct avl_node * root,int space_count)
 {
     if(!root)
@@ -197,31 +218,32 @@ void displayTree(struct avl_node * root,int space_count)
     space_count--;
     displayTree(root->left_ptr,space_count+1);
 }
+
+//Function to search given element in the tree
 bool searchElement(struct avl_node * root,int value)
 {
+    if(!root)
+    {
+        return false;
+    }
     if(root->data==value)
     {
         return true;
     }
     else
     {
-        while(root!=NULL)
-        {
-            if(root->data==value)
-            {
-                return true;
-            }
-            root=(value>root->data)?root->right_ptr:root->left_ptr;
-        }
+        root=(value>root->data)?root->right_ptr:root->left_ptr;
+        return searchElement(root,value);
     }
-    return false;
 }
+
+// Function for number validation
 bool numberValidation()
 {
     if(getchar()!='\n')
     {
         while(getchar()!='\n');
-        printf("\nEnter valid number\n");
+        return false;
     }
     else
     {
@@ -236,73 +258,105 @@ int main()
     while(loop_run)
     {
         printf("\n      AVL TREE      \n");
-    do
-	{
-        printf("\n1-- Insert a node\n2-- Remove a node\
-                \n3-- Display a node\n4-- search element\
-                \n5-- Exit\n\nEnter your choice :");
-        scanf("%d",&choice);
-	} while(!numberValidation());
-    printf("\n");
-    switch(choice)
-    {
-        case 1:
-            do
-          	{
-                 printf("\nEnter the value to be inserted =");
-                 scanf("%d",&value);
-          	} while(!numberValidation());
-            root=insertNode(root,value);
-            break;
-      case 2:
-            if(root)
+        do
+    	{
+            printf("\n1-- Insert a node\n2-- Remove a node\
+                    \n3-- Display a node\n4-- search element\
+                    \n5-- Exit\n\nEnter your choice :");
+            scanf("%d",&choice);
+            if(numberValidation())
             {
+                break;
+            }
+            else
+            {
+                printf("\nEnter the right choice\n");
+            }
+    	} while(1);
+        printf("\n");
+        switch(choice)
+        {
+            case INSERT_NODE:
                 do
-                {
-                     printf("\nEnter the value to be deleted =");
+              	{
+                     printf("\nEnter the value to be inserted =");
                      scanf("%d",&value);
-                } while(!numberValidation());
-                root=deleteNode(root,value);
-            }
-            else
-            {
-                printf("!!No element is present to remove!!\n");
-            }
-            break;
-      case 3:
-            if(root)
-            {
-                printf("Nodes present : \n");
-                displayTree(root,INITIAL_SPACE_COUNT);
-            }
-            else
-            {
-                printf("!!No element is present to display!!\n");
-            }
-            break;
-      case 4:
-            if(root)
-            {
-                do
+                     if(numberValidation())
+                     {
+                         break;
+                     }
+                     else
+                     {
+                         printf("\nEnter valid number\n");
+                     }
+              	} while(1);
+                root=insertNode(root,value);
+                break;
+          case DELETE_NODE:
+                if(root)
                 {
-                    printf("\nEnter the element to be searched =");
-                    scanf("%d",&value);
-                } while(!numberValidation());
-                (searchElement(root,value))?printf("Given element is present\n"):
-                                         printf("Given element is not present\n");
-            }
-            else
-            {
-                printf("!!No element is present to search!!\n");
-            }
-            break;
-      case 5:
-            loop_run=false;
-            break;
-      default:
-            printf("enter the valid choice\n");
-            break;
-    }
+                    do
+                    {
+                         printf("\nEnter the value to be deleted =");
+                         scanf("%d",&value);
+                         if(numberValidation())
+                         {
+                             break;
+                         }
+                         else
+                         {
+                             printf("\nEnter valid number\n");
+                         }
+                    } while(1);
+                    root=deleteNode(root,value);
+                }
+                else
+                {
+                    printf("!!No element is present to remove!!\n");
+                }
+                break;
+          case DISPLAY_TREE:
+                if(root)
+                {
+                    printf("Nodes present : \n");
+                    displayTree(root,INITIAL_SPACE_COUNT);
+                }
+                else
+                {
+                    printf("!!No element is present to display!!\n");
+                }
+                break;
+          case SEARCH_ELEMENT:
+                if(root)
+                {
+                    do
+                    {
+                        printf("\nEnter the element to be searched =");
+                        scanf("%d",&value);
+                        if(numberValidation())
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            printf("\nEnter valid number\n");
+                        }
+                    } while(1);
+                    (searchElement(root,value))?printf("Given element is present\n"):
+                                             printf("Given element is not present\n");
+                }
+                else
+                {
+                    printf("!!No element is present to search!!\n");
+                }
+                break;
+          case EXIT:
+                loop_run=false;
+                break;
+          default:
+                printf("Enter the right choice\n");
+                break;
+        }
     }
     return 0;
 }
