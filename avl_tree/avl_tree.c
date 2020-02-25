@@ -1,21 +1,26 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include "avl_tree.h"
-// macro passed a as argument to display function for initial space count
-#define INITIAL_SPACE_COUNT 0
-enum menu{INSERT_NODE=1,DELETE_NODE,DISPLAY_TREE,SEARCH_ELEMENT,EXIT};
 
-// Function to create new node
+ /* @author: Subhash S
+  * @function: creates a node when insert function is called
+  * @param 1:integer value is passed in the function to create node with it
+  * @return : structure pointer of the created node is returned*/
 struct avl_node* createNode(int value)
 {
-      struct avl_node* root=(struct avl_node*)malloc(sizeof(struct avl_node));
-      root->data=value;
-      root->left_ptr=NULL;
-      root->right_ptr=NULL;
+      struct avl_node* root = (struct avl_node*)malloc(sizeof(struct avl_node));
+      if(!root)
+      {
+          printf("!! Memory not allocated !!\n");
+          return NULL;
+      }
+      root->data = value;
+      root->left_ptr = NULL;
+      root->right_ptr = NULL;
       return root;
 }
-//Function to get the max height of the given node
+/* @author: Subhash S
+ * @function: to find the height of the given node
+ * @param 1: structure pointer of the node whose height to be found
+ * @return : returns the height of the give node */
 int height(struct avl_node *root)
 {
     if(!root)
@@ -24,9 +29,9 @@ int height(struct avl_node *root)
     }
     else
     {
-        int height_left=height(root->left_ptr);
-        int height_right=height(root->right_ptr);
-        if(height_left>height_right)
+        int height_left = height(root->left_ptr);
+        int height_right = height(root->right_ptr);
+        if(height_left > height_right)
         {
             return height_left+1;
         }
@@ -36,20 +41,25 @@ int height(struct avl_node *root)
         }
     }
 }
-// Function to insert a node with balancing conditions
+/* @author: Subhash S
+ * @function: to insert a node in the tree
+ * @param 1: structure pointer of the root node
+ * @param 2: value of the node to be inserted
+ * @return : returns the root node's structure pointer */
 struct avl_node* insertNode(struct avl_node* root,int value)
 {
-      if(root==NULL)
+      int balance_factor;
+      if(root == NULL)
       {
           return createNode(value);
       }
       if(value < root->data)
       {
-          root->left_ptr=insertNode(root->left_ptr,value);
+          root->left_ptr = insertNode(root->left_ptr,value);
       }
       else if(value > root->data)
       {
-          root->right_ptr=insertNode(root->right_ptr,value);
+          root->right_ptr = insertNode(root->right_ptr,value);
       }
       else
       {
@@ -57,32 +67,42 @@ struct avl_node* insertNode(struct avl_node* root,int value)
           return root;
       }
 
-// Getting the balance factor of the current node
-      int balance_factor=balance(root);
+/*Getting the balance factor of the current node*/
+       balance_factor = getBalanceFactor(root);
 
-// avl balancing rotations
-      if(balance_factor > 1 && value < root->left_ptr->data)
+/* avl balancing rotations*/
+      if(balance_factor > 1)
       {
-          return rightRotate(root);
+          if(value < root->left_ptr->data)
+          {
+              root = rightRotate(root);
+          }
+          else
+          {
+              root->left_ptr = leftRotate(root->left_ptr);
+              root = rightRotate(root);
+          }
       }
-      if(balance_factor > 1 && value >root->left_ptr->data)
+      else if(balance_factor < -1)
       {
-          root->left_ptr=leftRotate(root->left_ptr);
-          return rightRotate(root);
-      }
-      if(balance_factor < -1 && value > root->right_ptr->data)
-      {
-          return leftRotate(root);
-      }
-      if(balance_factor < -1 && value < root->right_ptr->data)
-      {
-          root->right_ptr=rightRotate(root->right_ptr);
-          return leftRotate(root);
+          if(value > root->right_ptr->data)
+          {
+              root = leftRotate(root);
+          }
+          else
+          {
+              root->right_ptr = rightRotate(root->right_ptr);
+              root = leftRotate(root);
+          }
       }
       return root;
 }
 
-// Function to delete a node with balancing conditions
+/* @author: Subhash S
+ * @function: to delete a node in the tree
+ * @param 1: structure pointer of the root node
+ * @param 2: value of the node to be deleted
+ * @return : returns the structure pointer of the root node of the tree */
 struct avl_node* deleteNode(struct avl_node* root,int value)
 {
       if(!searchElement(root,value))
@@ -96,37 +116,35 @@ struct avl_node* deleteNode(struct avl_node* root,int value)
       }
       if(value < root->data)
       {
-          root->left_ptr=deleteNode(root->left_ptr,value);
+          root->left_ptr = deleteNode(root->left_ptr,value);
       }
       else if(value > root->data)
       {
-          root->right_ptr=deleteNode(root->right_ptr,value);
+          root->right_ptr = deleteNode(root->right_ptr,value);
       }
       else
       {
-            if(root->left_ptr==NULL || root->right_ptr==NULL)
+            if(root->left_ptr == NULL || root->right_ptr == NULL)
             {
-                struct avl_node* temp=root->left_ptr? root->left_ptr :
+                struct avl_node* temp = root->left_ptr? root->left_ptr :
                                                       root->right_ptr;
                 if(!temp)
                 {
-                    temp=root;
-                    root=NULL;
-                    free(temp);
-                    printf("Elemnet is deleted \n");
+                    temp = root;
+                    root = NULL;
                 }
                 else
                 {
-                    *root=*temp;
-                    free(temp);
-                    printf("Elemnet is deleted \n");
+                    *root =  *temp;
                 }
+                free(temp);
+                printf("Elemnet is deleted \n");
             }
             else
             {
-                struct avl_node* temp=getMinimumNode(root->right_ptr);
-                root->data=temp->data;
-                root->right_ptr=deleteNode(root->right_ptr,temp->data);
+                struct avl_node* temp = getMinimumNode(root->right_ptr);
+                root->data = temp->data;
+                root->right_ptr = deleteNode(root->right_ptr,temp->data);
             }
       }
 
@@ -135,81 +153,114 @@ struct avl_node* deleteNode(struct avl_node* root,int value)
           return root;
       }
 
-// Getting the balance factor of the current node
-      int balance_factor=balance(root);
+/* Getting the balance factor of the current node */
+      int balance_factor = getBalanceFactor(root);
 
-// avl balancing rotations
-      if(balance_factor < -1 && balance(root->right_ptr)>0)
+/* avl balancing rotations */
+      if(balance_factor < -1)
       {
-          root->right_ptr=rightRotate(root->right_ptr);
-          return leftRotate(root);
+          if(getBalanceFactor(root->right_ptr) > 0)
+          {
+              root->right_ptr = rightRotate(root->right_ptr);
+              root = leftRotate(root);
+          }
+          else if(getBalanceFactor(root->right_ptr) <= 0)
+          {
+              root = leftRotate(root);
+          }
       }
-      if(balance_factor < -1 && balance(root->right_ptr)<=0)
+      else if(balance_factor > 1)
       {
-          return leftRotate(root);
-      }
-      if(balance_factor > 1 && balance(root->left_ptr)>=0)
-      {
-          return rightRotate(root);
-      }
-      if(balance_factor > 1 && balance(root->left_ptr)<0)
-      {
-          root->left_ptr=leftRotate(root->left_ptr);
-          return rightRotate(root);
+          if(getBalanceFactor(root->left_ptr) >= 0)
+          {
+              root = rightRotate(root);
+          }
+          else if(getBalanceFactor(root->left_ptr) < 0)
+          {
+              root->left_ptr = leftRotate(root->left_ptr);
+              root = rightRotate(root);
+          }
       }
       return root;
 }
 
-// Function for avl tree left rotation
-struct avl_node* leftRotate(struct avl_node* temp_node)
+/* @author: Subhash S
+ * @function: to rotate the nodes with left rotation logic
+ * @param 1: structure pointer of the node which is unbalanced
+ * @return : returns the structure pointer of the balanced node */
+struct avl_node* leftRotate(struct avl_node* node)
 {
-    struct avl_node* mid_node=temp_node->right_ptr;
-    struct avl_node* left_node=mid_node->left_ptr;
-    mid_node->left_ptr=temp_node;
-    temp_node->right_ptr=left_node;
+    if(!node)
+    {
+        return NULL;
+    }
+    struct avl_node* mid_node = node->right_ptr;
+    struct avl_node* left_node = mid_node->left_ptr;
+    mid_node->left_ptr = node;
+    node->right_ptr = left_node;
     return mid_node;
 }
 
-// Function for avl tree right rotation
-struct avl_node* rightRotate(struct avl_node* temp_node)
+/* @author: Subhash S
+ * @function: to rotate the nodes with right rotation logic
+ * @param 1: structure pointer of the node which is unbalanced
+ * @return : returns the structure pointer of the balanced node */
+struct avl_node* rightRotate(struct avl_node* node)
 {
-    struct avl_node* mid_node=temp_node->left_ptr;
-    struct avl_node* right_node=mid_node->right_ptr;
-    mid_node->right_ptr=temp_node;
-    temp_node->left_ptr=right_node;
+    if(!node)
+    {
+        return NULL;
+    }
+    struct avl_node* mid_node = node->left_ptr;
+    struct avl_node* right_node = mid_node->right_ptr;
+    mid_node->right_ptr = node;
+    node->left_ptr = right_node;
     return mid_node;
 }
 
-// Function to get the minimum node for replacing in deletion
+/* @author: Subhash S
+ * @function: to get the minimum node while deleting
+ * @param 1: structure pointer of the root node from where the minimum node is found
+ * @return : returns the structure pointer of the minimum node */
 struct avl_node* getMinimumNode(struct avl_node* root)
 {
-    while(root->left_ptr!=NULL)
+    if(!root)
     {
-        root=root->left_ptr;
+        return NULL;
+    }
+    while(root->left_ptr != NULL)
+    {
+        root = root->left_ptr;
     }
     return root;
 }
 
-// Function to get the balance factor of the given node
-int balance(struct avl_node* root)
+/* @author: Subhash S
+ * @function: to get the balance factor of the given node
+ * @param 1: structure pointer of the node whose balance factor to be found
+ * @return : returns the interger value as balance factor */
+int getBalanceFactor(struct avl_node* root)
 {
-    if(root==NULL)
+    if(!root)
     {
-        return 0;
+        return NULL;
     }
     return (height(root->left_ptr)-height(root->right_ptr));
 }
 
-// Function to display the nodes present like tree
+/* @author: Subhash S
+ * @function: to dispaly the entire tree
+ * @param 1: structure pointer of the root node
+ * @param 2: initial space count for printing */
 void displayTree(struct avl_node * root,int space_count)
 {
-    if(!root)
+    if(space_count < 0 && !root)
     {
         return;
     }
-    space_count=space_count+1;
+    space_count = space_count+1;
     displayTree(root->right_ptr,space_count);
-    for(int temp=space_count;temp>1;temp--)
+    for(int temp = space_count;temp>1;temp--)
     {
         printf("   ");
     }
@@ -218,104 +269,81 @@ void displayTree(struct avl_node * root,int space_count)
     space_count--;
     displayTree(root->left_ptr,space_count+1);
 }
-
-//Function to search given element in the tree
+/* @author: Subhash S
+ * @function: to search given element in the tree
+ * @param 1: structure pointer of the root node of the tree from where serach is done
+ * @param 2: integer value of the node to be searched
+ * @return : returns a boolean value true if element is present or returns false*/
 bool searchElement(struct avl_node * root,int value)
 {
     if(!root)
     {
         return false;
     }
-    if(root->data==value)
+    if(root->data == value)
     {
         return true;
     }
     else
     {
-        root=(value>root->data)?root->right_ptr:root->left_ptr;
+        root = (value > root->data) ? root->right_ptr:root->left_ptr;
         return searchElement(root,value);
     }
 }
 
-// Function for number validation
-bool numberValidation()
+/* @authhor: Subhash S
+ * @function: to get the number and validate
+ * @param 1: character pointer with validation message string
+ * @return: returns interger value 0 if validation fails or returns the valid integer number
+ */
+int getNumberAndValidate(char *validation_msg)
 {
-    if(getchar()!='\n')
+    int number=0;
+    while(!number)
     {
-        while(getchar()!='\n');
-        return false;
+        scanf("%d",&number);
+        if(getchar() != '\n')
+        {
+            while(getchar() != '\n');
+            printf("%s",validation_msg);
+        }
     }
-    else
-    {
-        return true;
-    }
+    return number;
 }
 int main()
 {
-    struct avl_node* root=NULL;
+    struct avl_node* root = NULL;
     int choice,value;
-    bool loop_run=true;
+    bool loop_run = true;
+    char validation_msg1[]="enter the right choice ";
+    char validation_msg2[]="enter the valid number ";
     while(loop_run)
     {
         printf("\n      AVL TREE      \n");
-        do
-    	{
-            printf("\n1-- Insert a node\n2-- Remove a node\
+        printf("\n1-- Insert a node\n2-- Remove a node\
                     \n3-- Display a node\n4-- search element\
                     \n5-- Exit\n\nEnter your choice :");
-            scanf("%d",&choice);
-            if(numberValidation())
-            {
-                break;
-            }
-            else
-            {
-                printf("\nEnter the right choice\n");
-            }
-    	} while(1);
+    	choice = getNumberAndValidate(validation_msg1);
         printf("\n");
         switch(choice)
         {
             case INSERT_NODE:
-                do
-              	{
-                     printf("\nEnter the value to be inserted =");
-                     scanf("%d",&value);
-                     if(numberValidation())
-                     {
-                         break;
-                     }
-                     else
-                     {
-                         printf("\nEnter valid number\n");
-                     }
-              	} while(1);
-                root=insertNode(root,value);
+                printf("\nEnter the value to be inserted  = ");
+                value = getNumberAndValidate(validation_msg2);
+                root = insertNode(root,value);
                 break;
-          case DELETE_NODE:
+            case DELETE_NODE:
                 if(root)
                 {
-                    do
-                    {
-                         printf("\nEnter the value to be deleted =");
-                         scanf("%d",&value);
-                         if(numberValidation())
-                         {
-                             break;
-                         }
-                         else
-                         {
-                             printf("\nEnter valid number\n");
-                         }
-                    } while(1);
-                    root=deleteNode(root,value);
+                    value = getNumberAndValidate(validation_msg2);
+                    root = deleteNode(root,value);
                 }
                 else
                 {
                     printf("!!No element is present to remove!!\n");
                 }
                 break;
-          case DISPLAY_TREE:
+            case DISPLAY_TREE:
                 if(root)
                 {
                     printf("Nodes present : \n");
@@ -326,22 +354,10 @@ int main()
                     printf("!!No element is present to display!!\n");
                 }
                 break;
-          case SEARCH_ELEMENT:
+            case SEARCH_ELEMENT:
                 if(root)
                 {
-                    do
-                    {
-                        printf("\nEnter the element to be searched =");
-                        scanf("%d",&value);
-                        if(numberValidation())
-                        {
-                            break;
-                        }
-                        else
-                        {
-                            printf("\nEnter valid number\n");
-                        }
-                    } while(1);
+                    value = getNumberAndValidate(validation_msg2);
                     (searchElement(root,value))?printf("Given element is present\n"):
                                              printf("Given element is not present\n");
                 }
@@ -350,10 +366,10 @@ int main()
                     printf("!!No element is present to search!!\n");
                 }
                 break;
-          case EXIT:
-                loop_run=false;
+            case EXIT:
+                loop_run = false;
                 break;
-          default:
+            default:
                 printf("Enter the right choice\n");
                 break;
         }
