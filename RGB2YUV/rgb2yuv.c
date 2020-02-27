@@ -66,12 +66,12 @@ int main()
  */
     while(raw_rgb_index < -dibHeader.height * dibHeader.width * BYTES_IN_PIXEL - 2)
     {
-        y = 0.114 * raw_rgb_data[raw_rgb_index] + 0.587 * raw_rgb_data[raw_rgb_index + 1] + 0.299 * raw_rgb_data[raw_rgb_index + 2];
+        y = 0.114 * raw_rgb_data[raw_rgb_index] + 0.587 * raw_rgb_data[raw_rgb_index + 1] + 0.299 * raw_rgb_data[raw_rgb_index+2];
         u = 0.492 * (raw_rgb_data[raw_rgb_index] - y);
-        v = 0.877 * (raw_rgb_data[raw_rgb_index + 2] - y);
+        v = 0.877 * (raw_rgb_data[raw_rgb_index+2] - y);
         raw_rgb_data[raw_rgb_index] = y;
-        raw_rgb_data[raw_rgb_index + 1] = u;
-        raw_rgb_data[raw_rgb_index + 2] = v;
+        raw_rgb_data[raw_rgb_index + 1] = u+128;
+        raw_rgb_data[raw_rgb_index + 2] = v+128;
         raw_rgb_index += BYTES_IN_PIXEL;
     }
 
