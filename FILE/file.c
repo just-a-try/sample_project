@@ -30,44 +30,86 @@
 */
 bool findAndReplace(char *file_name)
 {
+    bool return_type;
     int word_found_count, temp_index, old_index = ZERO, new_index,
         file_index = ZERO, replace_index = ZERO, old_len, new_len, file_size, replace_size;
     char *file_content, *replaced_content, *old_word, *new_word;
     FILE *fp;
-    file_size = fileSize(file_name);
+
+    if((file_size = fileSize(file_name)) == FAILED)
+    {
+        printf("Error in fileSize function\n");
+        return false;
+    }
+
     printf("filesize %d\n", file_size);
     printf("Enter the word to be replaced\n");
     scanf("%ms", &old_word);
 
-    if((word_found_count = findWord(file_name, old_word)) > MINIMUM_WORD_FOUND)
+    if(!old_word)
+    {
+        printf("memory is not allocated successfully\n");
+    }
+
+    if((word_found_count = findWord(file_name, old_word)) > ZERO)
     {
         old_len = strlen(old_word);
         printf("Enter the new word\n");
         scanf("%ms", &new_word);
+
+        if(!new_word)
+        {
+            printf("memory is not allocated successfully\n");
+        }
+
         new_len = strlen(new_word);
 
         if(!(file_content = getContentOfThefile(file_name)))
         {
             printf("Error in function getContentOfThefile\n");
+
+            if(!old_word)
+            {
+                printf("memory is null can't be freed\n");
+            }
+
             free(old_word);
+
+            if(!new_word)
+            {
+                printf("memory is null can't be freed\n");
+            }
+
             free(new_word);
             return false;
         }
 
-        if(old_len > new_len)
-        {
-            replace_size = file_size - (word_found_count * (old_len - new_len));
-        }
-        else
-        {
-            replace_size = file_size + (word_found_count * (new_len - old_len));
-        }
+        replace_size = file_size + (word_found_count * (old_len - new_len));
+            // replace_size = file_size + (word_found_count * (new_len - old_len));
 
         if(!(replaced_content = (char*)malloc(replace_size * sizeof(char))))
         {
             printf("memory not allocated\n");
+
+            if(!file_content)
+            {
+                printf("memory is null can't be freed\n");
+            }
+
             free(file_content);
+
+            if(!old_word)
+            {
+                printf("memory is null can't be freed\n");
+            }
+
             free(old_word);
+
+            if(!new_word)
+            {
+                printf("memory is null can't be freed\n");
+            }
+
             free(new_word);
             return false;
         }
@@ -126,11 +168,8 @@ bool findAndReplace(char *file_name)
         if(!(fp=fopen(file_name, "wb")))
         {
             printf("given file is not present\n");
-            free(file_content);
-            free(old_word);
-            free(new_word);
-            free(replaced_content);
-            return false;
+            return_type = false;
+            goto clean_up;
         }
 
         if(!fwrite(replaced_content, replace_size, NMEMB, fp))
@@ -142,34 +181,62 @@ bool findAndReplace(char *file_name)
                 printf("The file is not closed successfully\n");
             }
 
-            free(file_content);
-            free(old_word);
-            free(new_word);
-            free(replaced_content);
-            return false;
+            return_type = false;
+            goto clean_up;
         }
 
         if(fclose(fp) == EOF)
         {
             printf("The file is not closed successfully\n");
-            free(file_content);
-            free(old_word);
-            free(new_word);
-            free(replaced_content);
-            return false;
+            return_type = false;
+            goto clean_up;
         }
 
-        free(file_content);
-        free(old_word);
-        free(new_word);
-        free(replaced_content);
+        return_type = true;
+        goto clean_up;
     }
     else
     {
+        if(!old_word)
+        {
+            printf("memory is null can't be freed\n");
+        }
+
         free(old_word);
         printf("Given word is not present\n");
     }
-    return true;
+
+    clean_up:
+
+        if(!file_content)
+        {
+            printf("memory is null can't be freed\n");
+        }
+
+        free(file_content);
+
+        if(!old_word)
+        {
+            printf("memory is null can't be freed\n");
+        }
+
+        free(old_word);
+
+        if(!new_word)
+        {
+            printf("memory is null can't be freed\n");
+        }
+
+        free(new_word);
+
+        if(!replaced_content)
+        {
+            printf("memory is null can't be freed\n");
+        }
+
+        free(replaced_content);
+
+    return return_type;
 }
 
 /* @authhor: Subhash
@@ -220,15 +287,16 @@ int fileSize(char *file_name)
      FILE *fp;
      char *file_content;
      int file_size;
-     file_size=fileSize(file_name);
+
+     if((file_size = fileSize(file_name)) == FAILED)
+     {
+         printf("Error in fileSize function\n");
+         return NULL;
+     }
 
      if(!(fp=fopen(file_name, "rb")))
      {
          printf("content is not present\n");
-         if(fclose(fp) == EOF)
-         {
-             printf("The file is not closed successfully\n");
-         }
          return NULL;
      }
 
@@ -245,10 +313,17 @@ int fileSize(char *file_name)
      if(!fread(file_content, file_size, NMEMB, fp))
      {
         printf("fread is not excecuted successfully\n");
+
         if(fclose(fp) == EOF)
         {
             printf("The file is not closed successfully\n");
         }
+
+        if(!file_content)
+        {
+            printf("memory is null can't be freed\n");
+        }
+
         free(file_content);
         return NULL;
      }
@@ -256,6 +331,12 @@ int fileSize(char *file_name)
      if(fclose(fp) == EOF)
      {
          printf("The file is not closed successfully\n");
+
+         if(!file_content)
+         {
+             printf("memory is null can't be freed\n");
+         }
+
          free(file_content);
          return NULL;
      }
@@ -273,7 +354,12 @@ int fileSize(char *file_name)
      char *file_content;
      int word_length, file_size, index_of_file = ZERO, index_of_word = ZERO, count = ZERO;
      word_length = strlen(word);
-     file_size = fileSize(file_name);
+
+     if((file_size = fileSize(file_name)) == FAILED)
+     {
+         printf("Error in fileSize function\n");
+         return FAILED;
+     }
 
      if(!(file_content = getContentOfThefile(file_name)))
      {
@@ -300,6 +386,11 @@ int fileSize(char *file_name)
          index_of_file++;
      }
 
+     if(!file_content)
+     {
+         printf("memory is null can't be freed\n");
+     }
+
      free(file_content);
      return count;
  }
@@ -313,7 +404,12 @@ bool displayFile(char *file_name)
 {
     char *file_content;
     int file_size, file_index = ZERO;
-    file_size = fileSize(file_name);
+
+    if((file_size = fileSize(file_name)) == FAILED)
+    {
+        printf("Error in fileSize function\n");
+        return false;
+    }
 
     if(!(file_content = getContentOfThefile(file_name)))
     {
@@ -328,6 +424,11 @@ bool displayFile(char *file_name)
         file_index++;
     }
 
+    if(!file_content)
+    {
+        printf("memory is null can't be freed\n");
+    }
+
     free(file_content);
     return true;
 }
@@ -339,21 +440,33 @@ bool displayFile(char *file_name)
  */
  bool insert(char *file_name)
  {
+      bool return_type = true;
       FILE *fp;
       int position=ZERO,file_size, choice, insert_len, insert_index = ZERO, temp_index, total_index = ZERO;
       char *temp_str, *insert_string, *total_str;
-      file_size = fileSize(file_name);
+
+      if((file_size = fileSize(file_name)) == FAILED)
+      {
+          printf("Error in fileSize function\n");
+          return false;
+      }
 
       if(!file_size)
       {
             if(!(fp = fopen(file_name, "wb")))
             {
-                printf("given file is not present\n");
+                printf("Error in openning the file\n");
                 return false;
             }
 
             printf("Type any content\n");
             scanf("%m[^\n]", &insert_string);
+
+            if(!insert_string)
+            {
+                printf("memory is not allocated successfully\n");
+            }
+
             insert_len = strlen(insert_string);
 
             if(fwrite(insert_string, insert_len, NMEMB, fp) == EOF)
@@ -363,6 +476,12 @@ bool displayFile(char *file_name)
                 {
                     printf("The file is not closed successfully\n");
                 }
+
+                if(!insert_string)
+                {
+                    printf("memory is null can't be freed\n");
+                }
+
                 free(insert_string);
                 return false;
             }
@@ -379,20 +498,45 @@ bool displayFile(char *file_name)
               if(!(fp=fopen(file_name, "rb+")))
               {
                   printf("given file is not present\n");
+
+                  if(!insert_string)
+                  {
+                      printf("memory is null can't be freed\n");
+                  }
+
+                  free(insert_string);
                   return false;
               }
 
               if(!(temp_str = (char*)malloc((insert_len + file_size)*sizeof(char))))
               {
                   printf("memory not allocated\n");
+
+                  if(!insert_string)
+                  {
+                      printf("memory is null can't be freed\n");
+                  }
+
                   free(insert_string);
-                  return NULL;
+                  return false;
               }
 
               if(!(total_str = getContentOfThefile(file_name)))
               {
                   printf("Error in function getContentOfThefile\n");
+
+                  if(!temp_str)
+                  {
+                      printf("memory is null can't be freed\n");
+                  }
+
                   free(temp_str);
+
+                  if(!insert_string)
+                  {
+                      printf("memory is null can't be freed\n");
+                  }
+
                   free(insert_string);
                   return false;
               }
@@ -421,10 +565,9 @@ bool displayFile(char *file_name)
                           {
                               printf("The file is not closed successfully\n");
                           }
-                          free(temp_str);
-                          free(insert_string);
-                          free(total_str);
-                          return false;
+
+                          return_type = false;
+                          goto clean_up;
                       }
                       break;
                   case END:
@@ -445,14 +588,14 @@ bool displayFile(char *file_name)
                       if(fwrite(temp_str, (file_size + insert_len), NMEMB, fp) == EOF)
                       {
                           printf("fwrite is not excecuted successfully\n");
+
                           if(fclose(fp) == EOF)
                           {
                               printf("The file is not closed successfully\n");
                           }
-                          free(temp_str);
-                          free(insert_string);
-                          free(total_str);
-                          return false;
+
+                          return_type = false;
+                          goto clean_up;
                       }
                       break;
                   case POSITION:
@@ -482,18 +625,34 @@ bool displayFile(char *file_name)
                           {
                               printf("The file is not closed successfully\n");
                           }
-                          free(temp_str);
-                          free(insert_string);
-                          free(total_str);
-                          return false;
+
+                          return_type = false;
+                          goto clean_up;
                       }
                       break;
                   default:
                       printf("enter the right choice\n");
                       break;
               }
+
+              if(!temp_str)
+              {
+                  printf("memory is null can't be freed\n");
+              }
+
               free(temp_str);
+
+              if(!total_str)
+              {
+                  printf("memory is null can't be freed\n");
+              }
+
               free(total_str);
+      }
+
+      if(!insert_string)
+      {
+          printf("memory is null can't be freed\n");
       }
 
       free(insert_string);
@@ -504,7 +663,28 @@ bool displayFile(char *file_name)
           return false;
       }
 
-      return true;
+      clean_up:
+          if(!temp_str)
+          {
+              printf("memory is null can't be freed\n");
+          }
+
+          free(temp_str);
+
+          if(!insert_string)
+          {
+              printf("memory is null can't be freed\n");
+          }
+
+          free(insert_string);
+
+          if(!total_str)
+          {
+              printf("memory is null can't be freed\n");
+          }
+
+          free(total_str);
+      return return_type;
  }
 
 int main()
@@ -556,6 +736,12 @@ int main()
                     {
                         printf("number of given word present in the file %d\n", count);
                     }
+
+                    if(!word)
+                    {
+                        printf("memory is null can't be freed\n");
+                    }
+
                     free(word);
                 }
                 break;
@@ -585,6 +771,12 @@ int main()
                 break;
         }
     }
+
+    if(!file_name)
+    {
+        printf("memory is null can't be freed\n");
+    }
+
     free(file_name);
     return ZERO;
 }
