@@ -57,16 +57,17 @@ int main()
         exit(1);
     }
     fp = NULL;
-    // num_of_padding = dibHeader.bmp_bytesz - ((-dibHeader.height) * dibHeader.width * BYTES_IN_PIXEL);
+    num_of_padding = dibHeader.width % 3;//dibHeader.bmp_bytesz - ((-dibHeader.height) * dibHeader.width * BYTES_IN_PIXEL);
     // printf("pad size %d\n",num_of_padding);//(bmpHeader.height * bmpHeader.width - 2)
 
 /* Logic for RGB to YUV conversion :
  * First 3 bytes of the RGB array taken and converted to Y, U, V separately and
  * stored in the same array with same index position where RGB data is taken
  */
-    while(raw_rgb_index < -dibHeader.height * dibHeader.width * BYTES_IN_PIXEL - 2)
+    while(raw_rgb_index < dibHeader.bmp_bytesz - (2 + num_of_padding))//-dibHeader.height * dibHeader.width * BYTES_IN_PIXEL - 2)
     {
-        y = 0.114 * raw_rgb_data[raw_rgb_index] + 0.587 * raw_rgb_data[raw_rgb_index + 1] + 0.299 * raw_rgb_data[raw_rgb_index+2];
+        y = 0.114 * raw_rgb_data[raw_rgb_index] + 0.587 * raw_rgb_data[raw_rgb_index + 1] +
+            0.299 * raw_rgb_data[raw_rgb_index+2];
         u = 0.492 * (raw_rgb_data[raw_rgb_index] - y);
         v = 0.877 * (raw_rgb_data[raw_rgb_index+2] - y);
         raw_rgb_data[raw_rgb_index] = y;
