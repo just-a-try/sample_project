@@ -26,6 +26,967 @@ int getNumberAndValidate(char *validation_msg)
 }
 
 /* @authhor: Subhash
+ * @function: to get the yuv420 planar raw data file and convert it to yuv422 Planar format
+ * @return: returns a true if function executed successfully or false if it fails
+ */
+bool yuv420pToyuv422()
+{
+    FILE*fp;
+    char *file_name;
+    bool get_again;
+    int flag = 0, width, height, pixels, YUV420p_filesize, YUV422_filesize,
+        Y420p_index = 0, Y422_index = 1, U422_index = 0, V422_index = 2;
+    uint8_t *raw_yuv420p_data, *raw_yuv422_data;
+
+    do{
+        get_again = false;
+        printf("Enter the YUV422 raw file name\n");
+        scanf("%ms", &file_name);
+
+        if(!file_name)
+        {
+            printf("Memory is not allocated successfully\n");
+            return false;
+        }
+
+        if(!(fp = fopen(file_name, "rb")))
+        {
+            printf("Given raw file is not present, give a correct file name\n");
+            file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+            get_again = true;
+        }
+
+    }while(get_again);
+
+    printf("Enter the width of the image\n");
+    width = abs(getNumberAndValidate("enter the valid number "));
+
+    printf("Enter the height of the image\n");
+    height = abs(getNumberAndValidate("enter the valid number "));
+
+    pixels = width * height;
+    YUV422_filesize = pixels * BYTES_IN_PIXEL - pixels;
+    YUV420p_filesize = pixels + 2 * ((width / 2) * (height / 2));
+
+    raw_yuv420p_data = malloc(YUV420p_filesize);
+
+    if(!raw_yuv420p_data)
+    {
+        printf("memory not allocated\n");
+        goto QUIT;
+    }
+
+    if(!fread(raw_yuv420p_data, YUV420p_filesize, NMEMB, fp))
+    {
+       printf("fread is not excecuted successfully\n");
+       goto QUIT;
+    }
+
+    if(fclose(fp) == EOF)
+    {
+        printf("The file is not closed successfully\n");
+        file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+        raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+        return false;
+    }
+
+    fp = NULL;
+
+    raw_yuv422_data = malloc(YUV422_filesize);
+
+    if(!raw_yuv422_data)
+    {
+        printf("memory not allocated\n");
+        goto QUIT;
+    }
+
+    while(Y420p_index < YUV420p_filesize)
+    {
+        if(Y420p_index < pixels)
+        {
+            raw_yuv422_data[Y422_index] = raw_yuv420p_data[Y420p_index];
+            Y422_index += 2;
+            Y420p_index++;
+        }
+        else if(Y420p_index < pixels + ((width / 2) * (height / 2)))
+        {
+            raw_yuv422_data[U422_index] = raw_yuv422_data[U422_index + 2 * width] =
+                                          raw_yuv420p_data[Y420p_index];
+            flag += 2;
+
+            if(flag == width)
+            {
+                U422_index += 2 * width + 4;
+                flag = 0;
+            }
+            else
+            {
+                U422_index += 4;
+            }
+
+            Y420p_index++;
+        }
+        else
+        {
+            raw_yuv422_data[V422_index] = raw_yuv422_data[V422_index + 2 * width] =
+                                          raw_yuv420p_data[Y420p_index];
+            flag += 2;
+
+            if(flag == width)
+            {
+                V422_index += 2 * width + 4;
+                flag = 0;
+            }
+            else
+            {
+                V422_index += 4;
+            }
+
+            Y420p_index++;
+
+        }
+    }
+
+    if(!fp)
+    {
+        if(!(fp = fopen("YUV422_from_YUV420P_file.raw", "wb")))
+        {
+            printf("Error in openning the file\n");
+            goto QUIT;
+        }
+
+        if(fwrite(raw_yuv422_data, YUV422_filesize, NMEMB, fp) == EOF)
+        {
+            printf("fwrite is not excecuted successfully\n");
+            goto QUIT;
+        }
+
+        printf("Converted data written successfully in the file YUV420_from_YUV422_file.raw\n");
+
+        if(fclose(fp) == EOF)
+        {
+            printf("The file is not closed successfully\n");
+            file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+            raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+            raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+            return false;
+        }
+    }
+    else
+    {
+        printf("file pointer is not null\n");
+    }
+
+    file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+    raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+    raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+    return true;
+
+    QUIT:
+
+    file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+    raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+    raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+
+    if(fclose(fp) == EOF)
+    {
+        printf("The file is not closed successfully\n");
+    }
+
+    return false;
+}
+
+/* @authhor: Subhash
+ * @function: to get the yuv422 raw data file and convert it to yuv420 Planar format
+ * @return: returns a true if function executed successfully or false if it fails
+ */
+bool yuv422Toyuv420p()
+{
+    FILE*fp;
+    char *file_name;
+    bool get_again;
+    int flag = 0, width, height, pixels, YUV420p_filesize, YUV422_filesize,
+        Y420p_index = 0, Y422_index = 1, U422_index = 0, V422_index = 2;
+    uint8_t *raw_yuv420p_data, *raw_yuv422_data;
+
+    do{
+        get_again = false;
+        printf("Enter the YUV422 raw file name\n");
+        scanf("%ms", &file_name);
+
+        if(!file_name)
+        {
+            printf("Memory is not allocated successfully\n");
+            return false;
+        }
+
+        if(!(fp = fopen(file_name, "rb")))
+        {
+            printf("Given raw file is not present, give a correct file name\n");
+            file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+            get_again = true;
+        }
+
+    }while(get_again);
+
+    printf("Enter the width of the image\n");
+    width = abs(getNumberAndValidate("enter the valid number "));
+
+    printf("Enter the height of the image\n");
+    height = abs(getNumberAndValidate("enter the valid number "));
+
+    pixels = width * height;
+    YUV422_filesize = pixels * BYTES_IN_PIXEL - pixels;
+    YUV420p_filesize = pixels + 2 * ((width / 2) * (height / 2));
+
+    raw_yuv422_data = malloc(YUV422_filesize);
+
+    if(!raw_yuv422_data)
+    {
+        printf("memory not allocated\n");
+        goto QUIT;
+    }
+
+    if(!fread(raw_yuv422_data, YUV422_filesize, NMEMB, fp))
+    {
+       printf("fread is not excecuted successfully\n");
+       goto QUIT;
+    }
+
+    if(fclose(fp) == EOF)
+    {
+        printf("The file is not closed successfully\n");
+        file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+        raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+        return false;
+    }
+
+    fp = NULL;
+
+    raw_yuv420p_data = malloc(YUV420p_filesize);
+
+    if(!raw_yuv420p_data)
+    {
+        printf("memory not allocated\n");
+        goto QUIT;
+    }
+
+    while(Y420p_index < YUV420p_filesize)
+    {
+        if(Y420p_index < pixels)
+        {
+            raw_yuv420p_data[Y420p_index] = raw_yuv422_data[Y422_index];
+            Y422_index += 2;
+            Y420p_index++;
+        }
+        else if(Y420p_index < pixels + ((width / 2) * (height / 2)))
+        {
+            raw_yuv420p_data[Y420p_index]  = (raw_yuv422_data[U422_index] + raw_yuv422_data[U422_index + 2 * width]) / 2;
+            flag += 2;
+
+            if(flag == width)
+            {
+                U422_index += 2 * width + 4;
+                flag = 0;
+            }
+            else
+            {
+                U422_index += 4;
+            }
+
+            Y420p_index++;
+        }
+        else
+        {
+            raw_yuv420p_data[Y420p_index]  = (raw_yuv422_data[V422_index] + raw_yuv422_data[V422_index + 2 * width]) / 2;
+            flag += 2;
+
+            if(flag == width)
+            {
+                V422_index += 2 * width + 4;
+                flag = 0;
+            }
+            else
+            {
+                V422_index += 4;
+            }
+
+            Y420p_index++;
+
+        }
+    }
+
+    if(!fp)
+    {
+        if(!(fp = fopen("YUV420_from_YUV422_file.raw", "wb")))
+        {
+            printf("Error in openning the file\n");
+            goto QUIT;
+        }
+
+        if(fwrite(raw_yuv420p_data, YUV420p_filesize, NMEMB, fp) == EOF)
+        {
+            printf("fwrite is not excecuted successfully\n");
+            goto QUIT;
+        }
+
+        printf("Converted data written successfully in the file YUV420_from_YUV422_file.raw\n");
+
+        if(fclose(fp) == EOF)
+        {
+            printf("The file is not closed successfully\n");
+            file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+            raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+            raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+            return false;
+        }
+    }
+    else
+    {
+        printf("file pointer is not null\n");
+    }
+
+    file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+    raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+    raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+    return true;
+
+    QUIT:
+
+    file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+    raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+    raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+
+    if(fclose(fp) == EOF)
+    {
+        printf("The file is not closed successfully\n");
+    }
+
+    return false;
+}
+
+/* @authhor: Subhash
+ * @function: to get the yuv420P raw data file and convert it to yuv444 format
+ * @return: returns a true if function executed successfully or false if it fails
+ */
+bool yuv420pToyuv444()
+{
+    FILE*fp;
+    char *file_name;
+    bool get_again;
+    int flag = 0, width, height, pixels, YUV420p_filesize, YUV444_filesize,
+        Y420p_index = 0, Y444_index = 0, U444_index = 1, V444_index = 2;
+    uint8_t *raw_yuv420p_data, *raw_yuv444_data;
+
+    do{
+        get_again = false;
+        printf("Enter the YUV420p raw file name\n");
+        scanf("%ms", &file_name);
+
+        if(!file_name)
+        {
+            printf("Memory is not allocated successfully\n");
+            return false;
+        }
+
+        if(!(fp = fopen(file_name, "rb")))
+        {
+            printf("Given raw file is not present, give a correct file name\n");
+            file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+            get_again = true;
+        }
+
+    }while(get_again);
+
+    printf("Enter the width of the image\n");
+    width = abs(getNumberAndValidate("enter the valid number "));
+
+    printf("Enter the height of the image\n");
+    height = abs(getNumberAndValidate("enter the valid number "));
+
+    pixels = width * height;
+    YUV444_filesize = pixels * BYTES_IN_PIXEL;
+    YUV420p_filesize = pixels + 2 * ((width / 2) * (height / 2));
+
+    raw_yuv420p_data = malloc(YUV420p_filesize);
+
+    if(!raw_yuv420p_data)
+    {
+        printf("memory not allocated\n");
+        goto QUIT;
+    }
+
+    if(!fread(raw_yuv420p_data, YUV420p_filesize, NMEMB, fp))
+    {
+       printf("fread is not excecuted successfully\n");
+       goto QUIT;
+    }
+
+    if(fclose(fp) == EOF)
+    {
+        printf("The file is not closed successfully\n");
+        file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+        raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+        return false;
+    }
+
+    fp = NULL;
+
+    raw_yuv444_data = malloc(YUV444_filesize);
+
+    if(!raw_yuv444_data)
+    {
+        printf("memory not allocated\n");
+        goto QUIT;
+    }
+
+    while(Y420p_index < YUV420p_filesize)
+    {
+          if(Y420p_index < pixels)
+          {
+              raw_yuv444_data[Y444_index] = raw_yuv420p_data[Y420p_index];
+              Y444_index += 3;
+              Y420p_index++;
+          }
+          else if(Y420p_index < pixels + ((width / 2) * (height / 2)))
+          {
+              raw_yuv444_data[U444_index] = raw_yuv444_data[U444_index + 3] =
+              raw_yuv444_data[U444_index + BYTES_IN_PIXEL * width] =
+              raw_yuv444_data[U444_index + BYTES_IN_PIXEL * width + 3] = raw_yuv420p_data[Y420p_index];
+              flag += 2;
+
+              if(flag == width)
+              {
+                  U444_index += (width + 2) * BYTES_IN_PIXEL;
+                  flag = 0;
+              }
+              else
+              {
+                  U444_index += 6;
+              }
+
+              Y420p_index++;
+          }
+          else
+          {
+              raw_yuv444_data[V444_index] = raw_yuv444_data[V444_index + 3] =
+              raw_yuv444_data[V444_index + BYTES_IN_PIXEL * width] =
+              raw_yuv444_data[V444_index + BYTES_IN_PIXEL * width + 3] = raw_yuv420p_data[Y420p_index];
+              flag += 2;
+
+              if(flag == width)
+              {
+                  V444_index += (width + 2) * BYTES_IN_PIXEL;
+                  flag = 0;
+              }
+              else
+              {
+                  V444_index += 6;
+              }
+
+              Y420p_index++;
+
+          }
+
+    }
+
+    if(!fp)
+    {
+        if(!(fp = fopen("YUV444_from_420p_file.raw", "wb")))
+        {
+            printf("Error in openning the file\n");
+            goto QUIT;
+        }
+
+        if(fwrite(raw_yuv444_data, YUV444_filesize, NMEMB, fp) == EOF)
+        {
+            printf("fwrite is not excecuted successfully\n");
+            goto QUIT;
+        }
+
+        printf("Converted data written successfully in the file YUV444_from_420p_file.raw\n");
+
+        if(fclose(fp) == EOF)
+        {
+            printf("The file is not closed successfully\n");
+            file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+            raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+            raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+            return false;
+        }
+    }
+    else
+    {
+        printf("file pointer is not null\n");
+    }
+
+    file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+    raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+    raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+    return true;
+
+    QUIT:
+
+    file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+    raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+    raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+
+    if(fclose(fp) == EOF)
+    {
+        printf("The file is not closed successfully\n");
+    }
+
+    return false;
+
+
+}
+
+/* @authhor: Subhash
+ * @function: to get the yuv444 raw data file and convert it to yuv420 plannar format
+ * @return: returns a true if function executed successfully or false if it fails
+ */
+bool yuv444Toyuv420p()
+{
+  FILE*fp;
+  char *file_name;
+  bool get_again;
+  int flag = 0, width, height, pixels, YUV420p_filesize, YUV444_filesize,
+      Y420p_index = 0, Y444_index = 0, U444_index = 1, V444_index = 2;
+  uint8_t *raw_yuv420p_data, *raw_yuv444_data;
+
+  do{
+      get_again = false;
+      printf("Enter the YUV444 raw file name\n");
+      scanf("%ms", &file_name);
+
+      if(!file_name)
+      {
+          printf("Memory is not allocated successfully\n");
+          return false;
+      }
+
+      if(!(fp = fopen(file_name, "rb")))
+      {
+          printf("Given raw file is not present, give a correct file name\n");
+          file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+          get_again = true;
+      }
+
+  }while(get_again);
+
+  printf("Enter the width of the image\n");
+  width = abs(getNumberAndValidate("enter the valid number "));
+
+  printf("Enter the height of the image\n");
+  height = abs(getNumberAndValidate("enter the valid number "));
+
+  pixels = width * height;
+  YUV444_filesize = pixels * BYTES_IN_PIXEL;
+  YUV420p_filesize = pixels + 2 * ((width / 2) * (height / 2));
+
+  raw_yuv444_data = malloc(YUV444_filesize);
+
+  if(!raw_yuv444_data)
+  {
+    printf("memory not allocated\n");
+    goto QUIT;
+  }
+
+  if(!fread(raw_yuv444_data, YUV444_filesize, NMEMB, fp))
+  {
+     printf("fread is not excecuted successfully\n");
+     goto QUIT;
+  }
+
+  if(fclose(fp) == EOF)
+  {
+      printf("The file is not closed successfully\n");
+      file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+      raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+      return false;
+  }
+
+  fp = NULL;
+
+  raw_yuv420p_data = malloc(YUV420p_filesize);
+
+  if(!raw_yuv420p_data)
+  {
+      printf("memory not allocated\n");
+      goto QUIT;
+  }
+
+  while(Y420p_index < YUV420p_filesize)
+  {
+        if(Y420p_index < pixels)
+        {
+            raw_yuv420p_data[Y420p_index] = raw_yuv444_data[Y444_index];
+            Y444_index += 3;
+            Y420p_index++;
+        }
+        else if(Y420p_index < pixels + ((width / 2) * (height / 2)))
+        {
+            raw_yuv420p_data[Y420p_index]  = (raw_yuv444_data[U444_index] +
+                                              raw_yuv444_data[U444_index + 3] +
+                                              raw_yuv444_data[U444_index +
+                                              BYTES_IN_PIXEL * width] +
+                                              raw_yuv444_data[U444_index +
+                                              BYTES_IN_PIXEL * width + 3]) / 4;
+            flag += 2;
+
+            if(flag == width)
+            {
+                U444_index += (width + 2) * BYTES_IN_PIXEL;
+                flag = 0;
+            }
+            else
+            {
+                U444_index += 6;
+            }
+
+            Y420p_index++;
+        }
+        else
+        {
+            raw_yuv420p_data[Y420p_index] = (raw_yuv444_data[V444_index] +
+                                             raw_yuv444_data[V444_index + 3] +
+                                             raw_yuv444_data[V444_index +
+                                             BYTES_IN_PIXEL * width] +
+                                             raw_yuv444_data[V444_index +
+                                             BYTES_IN_PIXEL * width + 3]) / 4;
+            flag += 2;
+            if(flag == width)
+            {
+                V444_index += (width + 2) * BYTES_IN_PIXEL;
+                flag = 0;
+            }
+            else
+            {
+                V444_index += 6;
+            }
+            Y420p_index++;
+
+        }
+
+  }
+
+  if(!fp)
+  {
+      if(!(fp = fopen("YUV420_file.raw", "wb")))
+      {
+          printf("Error in openning the file\n");
+          goto QUIT;
+      }
+
+      if(fwrite(raw_yuv420p_data, YUV420p_filesize, NMEMB, fp) == EOF)
+      {
+          printf("fwrite is not excecuted successfully\n");
+          goto QUIT;
+      }
+
+      printf("Converted data written successfully in the file YUV420_file.raw\n");
+
+      if(fclose(fp) == EOF)
+      {
+          printf("The file is not closed successfully\n");
+          file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+          raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+          raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+          return false;
+      }
+  }
+  else
+  {
+      printf("file pointer is not null\n");
+  }
+
+  file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+  raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+  raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+  return true;
+
+  QUIT:
+
+  file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+  raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+  raw_yuv420p_data ? free(raw_yuv420p_data) : printf("pointer is null cant be freed\n");
+
+  if(fclose(fp) == EOF)
+  {
+      printf("The file is not closed successfully\n");
+  }
+
+  return false;
+
+
+
+}
+/* @authhor: Subhash
+ * @function: to get the yuv422 raw data file and convert it to yuv444 format
+ * @return: returns a true if function executed successfully or false if it fails
+ */
+bool yuv422Toyuv444()
+{
+  FILE*fp;
+  char *file_name;
+  bool get_again = false;
+  int width, height, YUV444_filesize, YUV422_filesize, Y444_index = 0, Y422_index = 0;
+  uint8_t *raw_yuv444_data, *raw_yuv422_data;
+
+  do{
+      printf("Enter the YUV444 raw file name\n");
+      scanf("%ms", &file_name);
+
+      if(!file_name)
+      {
+          printf("Memory is not allocated successfully\n");
+          return false;
+      }
+
+      if(!(fp = fopen(file_name, "rb")))
+      {
+          printf("Given raw file is not present, give a correct file name\n");
+          file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+          get_again = true;
+      }
+
+  }while(get_again);
+
+  printf("Enter the width of the image\n");
+  width = abs(getNumberAndValidate("enter the valid number "));
+
+  printf("Enter the height of the image\n");
+  height = abs(getNumberAndValidate("enter the valid number "));
+
+  YUV444_filesize = width * height * BYTES_IN_PIXEL;
+  YUV422_filesize = YUV444_filesize - width * height;
+
+  raw_yuv422_data = malloc(YUV422_filesize);
+
+  if(!raw_yuv422_data)
+  {
+    printf("memory not allocated\n");
+    goto QUIT;
+  }
+
+  if(!fread(raw_yuv422_data, YUV422_filesize, NMEMB, fp))
+  {
+     printf("fread is not excecuted successfully\n");
+     goto QUIT;
+  }
+
+  if(fclose(fp) == EOF)
+  {
+      printf("The file is not closed successfully\n");
+      file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+      raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+      return false;
+  }
+
+  fp = NULL;
+
+  raw_yuv444_data = malloc(YUV444_filesize);
+
+  if(!raw_yuv444_data)
+  {
+    printf("memory not allocated\n");
+    goto QUIT;
+  }
+
+  while(Y422_index < YUV422_filesize - 3)
+  {
+    raw_yuv444_data[Y444_index] = raw_yuv422_data[Y422_index + 1];
+    raw_yuv444_data[Y444_index + 1] = raw_yuv422_data[Y422_index];
+    raw_yuv444_data[Y444_index + 2] = raw_yuv422_data[Y422_index + 2];
+    raw_yuv444_data[Y444_index + 3] = raw_yuv422_data[Y422_index + 3];
+    raw_yuv444_data[Y444_index + 4] = raw_yuv422_data[Y422_index];
+    raw_yuv444_data[Y444_index + 5] = raw_yuv422_data[Y422_index + 2];
+    Y422_index += 4;
+    Y444_index += 6;
+  }
+
+  if(!fp)
+  {
+      if(!(fp = fopen("newYUV444_file.raw", "wb")))
+      {
+          printf("Error in openning the file\n");
+          goto QUIT;
+      }
+
+      if(fwrite(raw_yuv444_data, YUV444_filesize, NMEMB, fp) == EOF)
+      {
+          printf("fwrite is not excecuted successfully\n");
+          goto QUIT;
+      }
+
+      printf("Converted data written successfully in the file newYUV444_file.raw\n");
+
+      if(fclose(fp) == EOF)
+      {
+          printf("The file is not closed successfully\n");
+          file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+          raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+          raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+          return false;
+      }
+  }
+  else
+  {
+      printf("file pointer is not null\n");
+  }
+
+  file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+  raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+  raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+  return true;
+
+  QUIT:
+
+  file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+  raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+  raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+
+  if(fclose(fp) == EOF)
+  {
+      printf("The file is not closed successfully\n");
+  }
+
+  return false;
+}
+/* @authhor: Subhash
+ * @function: to get the yuv444 raw data file and convert it to yuv422 format
+ * @return: returns a true if function executed successfully or false if it fails
+ */
+bool yuv444Toyuv422()
+{
+    FILE*fp;
+    char *file_name;
+    bool get_again = false;
+    int width, height, YUV444_filesize, YUV422_filesize, Y444_index = 0, Y422_index = 0;
+    uint8_t *raw_yuv444_data, *raw_yuv422_data;
+
+    do{
+        printf("Enter the YUV444 raw file name\n");
+        scanf("%ms", &file_name);
+
+        if(!file_name)
+        {
+            printf("Memory is not allocated successfully\n");
+            return false;
+        }
+
+        if(!(fp = fopen(file_name, "rb")))
+        {
+            printf("Given raw file is not present, give a correct file name\n");
+            file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+            get_again = true;
+        }
+
+    }while(get_again);
+
+    printf("Enter the width of the image\n");
+    width = abs(getNumberAndValidate("enter the valid number "));
+
+    printf("Enter the height of the image\n");
+    height = abs(getNumberAndValidate("enter the valid number "));
+
+    YUV444_filesize = width * height * BYTES_IN_PIXEL;
+
+    raw_yuv444_data = malloc(YUV444_filesize);
+
+    if(!raw_yuv444_data)
+    {
+        printf("memory not allocated\n");
+        goto QUIT;
+    }
+
+    if(!fread(raw_yuv444_data, YUV444_filesize, NMEMB, fp))
+    {
+       printf("fread is not excecuted successfully\n");
+       goto QUIT;
+    }
+
+    if(fclose(fp) == EOF)
+    {
+        printf("The file is not closed successfully\n");
+        file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+        raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+        return false;
+    }
+
+    fp = NULL;
+    YUV422_filesize = YUV444_filesize - width * height;
+
+    raw_yuv422_data = malloc(YUV422_filesize);
+
+    if(!raw_yuv422_data)
+    {
+        printf("memory not allocated\n");
+        goto QUIT;
+    }
+
+    while(Y444_index < (YUV444_filesize - YUV444_INDEX_LIMIT))
+    {
+        raw_yuv422_data[Y422_index] = (raw_yuv444_data[Y444_index + FIRST_U_INDEX] +
+                                       raw_yuv444_data[Y444_index + SECOND_U_INDEX]) / 2;
+        raw_yuv422_data[Y422_index + 1] = raw_yuv444_data[Y444_index];
+        raw_yuv422_data[Y422_index + 2] =(raw_yuv444_data[Y444_index + FIRST_V_INDEX] +
+                                          raw_yuv444_data[Y444_index + SECOND_V_INDEX]) / 2;
+        raw_yuv422_data[Y422_index + 3] = raw_yuv444_data[Y444_index + 3];
+        Y422_index += 4;
+        Y444_index += 6;
+    }
+
+    if(!fp)
+    {
+        if(!(fp = fopen("YUV422_file.raw", "wb")))
+        {
+            printf("Error in openning the file\n");
+            goto QUIT;
+        }
+
+        if(fwrite(raw_yuv422_data, YUV422_filesize, NMEMB, fp) == EOF)
+        {
+            printf("fwrite is not excecuted successfully\n");
+            goto QUIT;
+        }
+
+        printf("Converted data written successfully in the file YUV422_file.raw\n");
+
+        if(fclose(fp) == EOF)
+        {
+            printf("The file is not closed successfully\n");
+            file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+            raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+            raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+            return false;
+        }
+    }
+    else
+    {
+        printf("file pointer is not null\n");
+    }
+
+    file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+    raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+    raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+    return true;
+
+    QUIT:
+
+    file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+    raw_yuv444_data ? free(raw_yuv444_data) : printf("pointer is null cant be freed\n");
+    raw_yuv422_data ? free(raw_yuv422_data) : printf("pointer is null cant be freed\n");
+
+    if(fclose(fp) == EOF)
+    {
+        printf("The file is not closed successfully\n");
+    }
+
+    return false;
+}
+
+/* @authhor: Subhash
  * @function: to get the yuv raw data file and convert it to a bmp file
  * @return: returns a true if function executed successfully or false if it fails
  */
@@ -46,7 +1007,6 @@ bool yuvToBmpConversion()
             printf("Memory is not allocated successfully\n");
             return false;
         }
-
 
         if(!(fp = fopen(file_name, "rb")))
         {
@@ -184,12 +1144,16 @@ bool yuvToBmpConversion()
             raw_yuv_data ? free(raw_yuv_data) : printf("pointer is null cant be freed\n");
             return false;
         }
+
     }
     else
     {
         printf("file pointer is not null\n");
     }
 
+    file_name ? free(file_name) : printf("pointer is null cant be freed\n");
+    raw_yuv_data ? free(raw_yuv_data) : printf("pointer is null cant be freed\n");
+    raw_rgb_data ? free(raw_rgb_data) : printf("pointer is null cant be freed\n");
     return true;
 
     QUIT:
@@ -387,9 +1351,15 @@ int main()
     while(loop_run)
     {
         printf("\n         IMAGE CONVERSIONS            \
-                \n1-- BMP file to YUV raw file\
-                \n2-- YUV raw file to BMP file\
-                \n3-- Exit\n");
+                \n1-- BMP to YUV444\
+                \n2-- YUV444 to BMP\
+                \n3-- YUV444 to YUV422\
+                \n4-- YUV422 to YUV444\
+                \n5-- YUV444 to YUV420P\
+                \n6-- YUV420P to YUV444\
+                \n7-- YUV422 to YUV420p\
+                \n8-- YUV420P to YUV422\
+                \n9-- Exit\n");
         choice = getNumberAndValidate("enter the right choice ");
 
         switch(choice)
@@ -405,7 +1375,42 @@ int main()
                 {
                     printf("YuvtobmpConersion function is not executed successfully\n");
                 }
-                printf("yuv to bmp conversion\n");
+                break;
+            case YUV444TOYUV422:
+                if(!yuv444Toyuv422())
+                {
+                    printf("yuv444Toyuv422 function is not executed successfully\n");
+                }
+                break;
+            case YUV422TOYUV444:
+                if(!yuv422Toyuv444())
+                {
+                    printf("yuv422Toyuv444 function is not executed successfully\n");
+                }
+                break;
+            case YUV444TOYUV420P:
+                if(!yuv444Toyuv420p())
+                {
+                  printf("yuv444Toyuv420p function is not executed successfully\n");
+                }
+                break;
+            case YUV420PTOYUV444:
+                if(!yuv420pToyuv444())
+                {
+                  printf("yuv444Toyuv420p function is not executed successfully\n");
+                }
+                break;
+            case YUV422TOYUV420P:
+                if(!yuv422Toyuv420p())
+                {
+                    printf("yuv422Toyuv420p function is not executed successfully\n");
+                }
+                break;
+            case YUV420PTOYUV422:
+                if(!yuv420pToyuv422())
+                {
+                    printf("yuv420pToyuv422 function is not executed successfully\n");
+                }
                 break;
             case EXIT:
                 loop_run = false;
@@ -420,3 +1425,4 @@ int main()
     exit(0);
 
 }
+
