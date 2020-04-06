@@ -1,0 +1,7 @@
+﻿  WindowsProject3.cpp
+c:\users\elcot\source\repos\windowsproject3\windowsproject3\resource.h(18): warning C4005: 'IDCANCEL': macro redefinition
+  c:\program files (x86)\windows kits\10\include\10.0.17763.0\um\winuser.h(10854): note: see previous definition of 'IDCANCEL'
+c:\users\elcot\source\repos\windowsproject3\windowsproject3\windowsproject3.cpp(28): warning C4129: 'M': unrecognized character escape sequence
+c:\users\elcot\source\repos\windowsproject3\windowsproject3\windowsproject3.cpp(42): warning C4129: 'M': unrecognized character escape sequence
+c:\users\elcot\source\repos\windowsproject3\windowsproject3\windowsproject3.cpp(44): warning C4129: 'M': unrecognized character escape sequence
+  WindowsProject3.vcxproj -> C:\Users\ELCOT\source\repos\WindowsProject3\Debug\WindowsProject3.exe
