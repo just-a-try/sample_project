@@ -3,7 +3,7 @@
 using namespace std;
 
 /* @author: Subhash
-   @function: to display os version of the system
+   @function: to display the os version of the system
    @return: returns true if the version is dispayed or false if not displayed
 */
 
