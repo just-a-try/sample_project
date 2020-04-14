@@ -109,8 +109,12 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
       return FALSE;
    }
 
+   //ShowWindow(hWnd, nCmdShow);
+
    DialogBox(hInst, MAKEINTRESOURCE(RANDOM_INT_DIALOG), hWnd, RandomInt);
   
+  // UpdateWindow(hWnd);
+
    return TRUE;
 }
 
@@ -145,7 +149,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-// call back function for random integer display in application
 INT_PTR CALLBACK RandomInt(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
