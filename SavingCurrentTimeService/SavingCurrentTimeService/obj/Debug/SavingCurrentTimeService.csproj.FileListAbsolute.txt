@@ -1,0 +1,10 @@
+C:\Users\ELCOT\Desktop\Windows_training_programs\SavingCurrentTimeService\SavingCurrentTimeService\bin\Debug\SavingCurrentTimeService.exe.config
+C:\Users\ELCOT\Desktop\Windows_training_programs\SavingCurrentTimeService\SavingCurrentTimeService\bin\Debug\SavingCurrentTimeService.exe
+C:\Users\ELCOT\Desktop\Windows_training_programs\SavingCurrentTimeService\SavingCurrentTimeService\bin\Debug\SavingCurrentTimeService.pdb
+C:\Users\ELCOT\Desktop\Windows_training_programs\SavingCurrentTimeService\SavingCurrentTimeService\bin\Debug\Topshelf.dll
+C:\Users\ELCOT\Desktop\Windows_training_programs\SavingCurrentTimeService\SavingCurrentTimeService\bin\Debug\Topshelf.xml
+C:\Users\ELCOT\Desktop\Windows_training_programs\SavingCurrentTimeService\SavingCurrentTimeService\obj\Debug\SavingCurrentTimeService.csprojAssemblyReference.cache
+C:\Users\ELCOT\Desktop\Windows_training_programs\SavingCurrentTimeService\SavingCurrentTimeService\obj\Debug\SavingCurrentTimeService.csproj.CoreCompileInputs.cache
+C:\Users\ELCOT\Desktop\Windows_training_programs\SavingCurrentTimeService\SavingCurrentTimeService\obj\Debug\SavingCurrentTimeService.csproj.CopyComplete
+C:\Users\ELCOT\Desktop\Windows_training_programs\SavingCurrentTimeService\SavingCurrentTimeService\obj\Debug\SavingCurrentTimeService.exe
+C:\Users\ELCOT\Desktop\Windows_training_programs\SavingCurrentTimeService\SavingCurrentTimeService\obj\Debug\SavingCurrentTimeService.pdb
