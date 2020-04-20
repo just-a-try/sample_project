@@ -1,6 +1,1 @@
-﻿  pch.cpp
-  dllmain.cpp
-  RandomIntegerDLL.cpp
-  Generating Code...
-     Creating library C:\Users\ELCOT\Desktop\windows training program temp\RandomIntegerDLL\Debug\RANDOMINTEGERDLL.lib and object C:\Users\ELCOT\Desktop\windows training program temp\RandomIntegerDLL\Debug\RANDOMINTEGERDLL.exp
-  RandomIntegerDLL.vcxproj -> C:\Users\ELCOT\Desktop\windows training program temp\RandomIntegerDLL\Debug\RANDOMINTEGERDLL.dll
+﻿LINK : fatal error LNK1104: cannot open file 'C:\Users\ELCOT\Desktop\github\subash_training\RandomIntegerGenerate\Debug\RANDOMINTEGERDLL.dll'

@@ -4,6 +4,7 @@
 #include "framework.h"
 #include "ListUSBDevices.h"
 #include "Resource.h"
+#include <dshow.h>
 #define MAX_LOADSTRING 100
 
 // Global Variables:
@@ -108,6 +109,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    }
 
    ShowWindow(hWnd, nCmdShow);
+   addmenu(hWnd);
    UpdateWindow(hWnd);
 
    return TRUE;
@@ -140,7 +142,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
-            case IDM_EXIT:
+            case ID_FILE_EXIT:
                 DestroyWindow(hWnd);
                 break;
             default:
@@ -188,11 +190,45 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 void addmenu(HWND hWnd)
 {
 	HMENU hmenu = GetMenu(hWnd);
-	HMENU hSubMenu = GetSubMenu(hmenu, 1);
+	HMENU hSubMenu = GetSubMenu(hmenu, 2);
+	UINT nDevices = 0, function_validate;
+
+	function_validate = GetRawInputDeviceList(NULL, &nDevices, sizeof(RAWINPUTDEVICELIST));
+
+	if (function_validate == -1)
+	{
+		MessageBox(hWnd, L"Error in GetRawInputDeviceList function", L"WINAPI status", MB_OK);
+	}
+
 	if (hSubMenu == NULL)
 	{
 		MessageBox(hWnd, L"Menu not created", L"Menu updation status", MB_OK);
 	}
-	AppendMenu(hSubMenu, MF_POPUP, TRUE, L"DeviceSubmenu");
-	//RemoveMenu(hSubMenu, 0, MF_BYPOSITION);
+	else
+	{
+		PRAWINPUTDEVICELIST pRawInputDeviceList;
+		pRawInputDeviceList = new RAWINPUTDEVICELIST[sizeof(RAWINPUTDEVICELIST) * nDevices];
+		int nResult;
+		nResult = GetRawInputDeviceList(pRawInputDeviceList, &nDevices, sizeof(RAWINPUTDEVICELIST));
+
+		for (UINT i = 0; i < nDevices; i++)
+		{
+			UINT nBufferSize = 0;
+			nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICENAME, NULL, &nBufferSize);
+
+			WCHAR* wcDeviceName = new WCHAR[nBufferSize + 1];
+
+			nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICENAME, wcDeviceName, &nBufferSize);
+
+			RID_DEVICE_INFO rdiDeviceInfo;
+			rdiDeviceInfo.cbSize = sizeof(RID_DEVICE_INFO);
+			nBufferSize = rdiDeviceInfo.cbSize;
+
+			nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICEINFO, &rdiDeviceInfo, &nBufferSize);
+
+			AppendMenu(hSubMenu, MF_STRING, TRUE, wcDeviceName);
+
+		}
+	}
+	DeleteMenu(hSubMenu, 0, MF_BYPOSITION);
 }
