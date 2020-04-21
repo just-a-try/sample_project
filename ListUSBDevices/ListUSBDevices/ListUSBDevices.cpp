@@ -5,6 +5,13 @@
 #include "ListUSBDevices.h"
 #include "Resource.h"
 #include <dshow.h>
+#include <windows.h>
+#include <tchar.h>
+
+#include <setupapi.h>
+#include <initguid.h>
+
+#include <stdio.h>
 #define MAX_LOADSTRING 100
 
 // Global Variables:
@@ -12,6 +19,8 @@ HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 
+DEFINE_GUID(GUID_DEVINTERFACE_USB_DEVICE,
+	0xA5DCBF10L, 0x6530, 0x11D2, 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED);
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -192,43 +201,104 @@ void addmenu(HWND hWnd)
 	HMENU hmenu = GetMenu(hWnd);
 	HMENU hSubMenu = GetSubMenu(hmenu, 2);
 	UINT nDevices = 0, function_validate;
+	HDEVINFO                         hDevInfo;
+	SP_DEVICE_INTERFACE_DATA         DevIntfData;
+	PSP_DEVICE_INTERFACE_DETAIL_DATA DevIntfDetailData;
+	SP_DEVINFO_DATA                  DevData;
 
-	function_validate = GetRawInputDeviceList(NULL, &nDevices, sizeof(RAWINPUTDEVICELIST));
+	DWORD dwSize, dwType, dwMemberIdx;
+	HKEY hKey;
+	BYTE lpData[1024];
 
-	if (function_validate == -1)
+	hDevInfo = SetupDiGetClassDevs(
+		&GUID_DEVINTERFACE_USB_DEVICE, NULL, 0, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
+
+	if (hDevInfo != INVALID_HANDLE_VALUE)
 	{
-		MessageBox(hWnd, L"Error in GetRawInputDeviceList function", L"WINAPI status", MB_OK);
-	}
+		DevIntfData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
+		dwMemberIdx = 0;
 
-	if (hSubMenu == NULL)
-	{
-		MessageBox(hWnd, L"Menu not created", L"Menu updation status", MB_OK);
-	}
-	else
-	{
-		PRAWINPUTDEVICELIST pRawInputDeviceList;
-		pRawInputDeviceList = new RAWINPUTDEVICELIST[sizeof(RAWINPUTDEVICELIST) * nDevices];
-		int nResult;
-		nResult = GetRawInputDeviceList(pRawInputDeviceList, &nDevices, sizeof(RAWINPUTDEVICELIST));
+		SetupDiEnumDeviceInterfaces(hDevInfo, NULL, &GUID_DEVINTERFACE_USB_DEVICE,
+			dwMemberIdx, &DevIntfData);
 
-		for (UINT i = 0; i < nDevices; i++)
+		while (GetLastError() != ERROR_NO_MORE_ITEMS)
 		{
-			UINT nBufferSize = 0;
-			nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICENAME, NULL, &nBufferSize);
+			DevData.cbSize = sizeof(DevData);
 
-			WCHAR* wcDeviceName = new WCHAR[nBufferSize + 1];
+			SetupDiGetDeviceInterfaceDetail(
+				hDevInfo, &DevIntfData, NULL, 0, &dwSize, NULL);
 
-			nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICENAME, wcDeviceName, &nBufferSize);
+			DevIntfDetailData = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwSize);
+			DevIntfDetailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
 
-			RID_DEVICE_INFO rdiDeviceInfo;
-			rdiDeviceInfo.cbSize = sizeof(RID_DEVICE_INFO);
-			nBufferSize = rdiDeviceInfo.cbSize;
+			if (SetupDiGetDeviceInterfaceDetail(hDevInfo, &DevIntfData,
+				DevIntfDetailData, dwSize, &dwSize, &DevData))
+			{
+				if (NULL != _tcsstr((TCHAR*)DevIntfDetailData->DevicePath, _T("vid_10cf&pid_8090")))
+				{
+					hKey = SetupDiOpenDevRegKey(
+						hDevInfo,
+						&DevData,
+						DICS_FLAG_GLOBAL,
+						0,
+						DIREG_DEV,
+						KEY_READ
+					);
 
-			nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICEINFO, &rdiDeviceInfo, &nBufferSize);
+					dwType = REG_SZ;
+					dwSize = sizeof(lpData);
+					RegQueryValueEx(hKey, _T("PortName"), NULL, &dwType, lpData, &dwSize);
+					RegCloseKey(hKey);
 
-			AppendMenu(hSubMenu, MF_STRING, TRUE, wcDeviceName);
+					AppendMenu(hSubMenu, MF_STRING, TRUE, (LPCWSTR)lpData);
+				}
+			}
 
+			HeapFree(GetProcessHeap(), 0, DevIntfDetailData);
+
+			SetupDiEnumDeviceInterfaces(
+				hDevInfo, NULL, &GUID_DEVINTERFACE_USB_DEVICE, ++dwMemberIdx, &DevIntfData);
 		}
+
+		SetupDiDestroyDeviceInfoList(hDevInfo);
 	}
+
+	//function_validate = GetRawInputDeviceList(NULL, &nDevices, sizeof(RAWINPUTDEVICELIST));
+
+	//if (function_validate == -1)
+	//{
+	//	MessageBox(hWnd, L"Error in GetRawInputDeviceList function", L"WINAPI status", MB_OK);
+	//}
+
+	//if (hSubMenu == NULL)
+	//{
+	//	MessageBox(hWnd, L"Menu not created", L"Menu updation status", MB_OK);
+	//}
+	//else
+	//{
+	//	PRAWINPUTDEVICELIST pRawInputDeviceList;
+	//	pRawInputDeviceList = new RAWINPUTDEVICELIST[sizeof(RAWINPUTDEVICELIST) * nDevices];
+	//	int nResult;
+	//	nResult = GetRawInputDeviceList(pRawInputDeviceList, &nDevices, sizeof(RAWINPUTDEVICELIST));
+
+	//	for (UINT i = 0; i < nDevices; i++)
+	//	{
+	//		UINT nBufferSize = 0;
+	//		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICENAME, NULL, &nBufferSize);
+
+	//		WCHAR* wcDeviceName = new WCHAR[nBufferSize + 1];
+
+	//		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICENAME, wcDeviceName, &nBufferSize);
+
+	//		RID_DEVICE_INFO rdiDeviceInfo;
+	//		rdiDeviceInfo.cbSize = sizeof(RID_DEVICE_INFO);
+	//		nBufferSize = rdiDeviceInfo.cbSize;
+
+	//		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICEINFO, &rdiDeviceInfo, &nBufferSize);
+
+	//		AppendMenu(hSubMenu, MF_STRING, TRUE, wcDeviceName);
+
+	//	}
+	//}
 	DeleteMenu(hSubMenu, 0, MF_BYPOSITION);
 }

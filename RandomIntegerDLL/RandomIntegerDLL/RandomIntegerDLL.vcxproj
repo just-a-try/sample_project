@@ -73,6 +73,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetName>RANDOMINTEGERDLL</TargetName>
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>..\..\RandomIntegerGenerate\RandomIntegerGenerate</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>RANDOMINTEGERDLL</TargetName>
@@ -81,6 +82,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetName>RANDOMINTEGERDLL</TargetName>
     <LinkIncremental>false</LinkIncremental>
+    <OutDir>..\..\RandomIntegerGenerate\RandomIntegerGenerate</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>RANDOMINTEGERDLL</TargetName>
