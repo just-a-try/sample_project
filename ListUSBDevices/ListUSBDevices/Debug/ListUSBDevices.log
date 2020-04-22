@@ -1,3 +1,2 @@
 ﻿  ListUSBDevices.cpp
-c:\users\elcot\desktop\windows training program temp\listusbdevices\listusbdevices\listusbdevices.cpp(231): error C2440: '=': cannot convert from 'LPVOID' to 'PSP_DEVICE_INTERFACE_DETAIL_DATA'
-  c:\users\elcot\desktop\windows training program temp\listusbdevices\listusbdevices\listusbdevices.cpp(231): note: Conversion from 'void*' to pointer to non-'void' requires an explicit cast
+  ListUSBDevices.vcxproj -> C:\Users\ELCOT\Desktop\ListUSBDevices\Debug\ListUSBDevices.exe

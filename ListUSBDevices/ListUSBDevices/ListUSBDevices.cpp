@@ -1,33 +1,30 @@
 // ListUSBDevices.cpp : Defines the entry point for the application.
 //
 
+
 #include "framework.h"
 #include "ListUSBDevices.h"
 #include "Resource.h"
 #include <dshow.h>
 #include <windows.h>
 #include <tchar.h>
-
 #include <setupapi.h>
 #include <initguid.h>
-
-#include <stdio.h>
 #define MAX_LOADSTRING 100
+
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 
-DEFINE_GUID(GUID_DEVINTERFACE_USB_DEVICE,
-	0xA5DCBF10L, 0x6530, 0x11D2, 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED);
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
-void addmenu(HWND);
+BOOL addmenu(HWND);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -118,7 +115,12 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    }
 
    ShowWindow(hWnd, nCmdShow);
-   addmenu(hWnd);
+
+   if (!addmenu(hWnd))
+   {
+	   OutputDebugString(_T("Error in addmenu function"));
+   }
+
    UpdateWindow(hWnd);
 
    return TRUE;
@@ -145,9 +147,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Parse the menu selections:
             switch (wmId)
             {
-			case ID_DEVICES:
-				addmenu(hWnd);
-				break;
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
@@ -159,6 +158,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+	case WM_DEVICECHANGE:
+	{
+		if (!addmenu(hWnd))
+		{
+			OutputDebugString(_T("Error in addmenu function"));
+		}
+		break;
+	}
     case WM_PAINT:
         {
             PAINTSTRUCT ps;
@@ -196,109 +203,117 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return (INT_PTR)FALSE;
 }
 
-void addmenu(HWND hWnd)
+BOOL addmenu(HWND hWnd)
 {
 	HMENU hmenu = GetMenu(hWnd);
 	HMENU hSubMenu = GetSubMenu(hmenu, 2);
-	UINT nDevices = 0, function_validate;
-	HDEVINFO                         hDevInfo;
-	SP_DEVICE_INTERFACE_DATA         DevIntfData;
-	PSP_DEVICE_INTERFACE_DETAIL_DATA DevIntfDetailData;
-	SP_DEVINFO_DATA                  DevData;
+	UINT nDevices = 0;
 
-	DWORD dwSize, dwType, dwMemberIdx;
-	HKEY hKey;
-	BYTE lpData[1024];
-
-	hDevInfo = SetupDiGetClassDevs(
-		&GUID_DEVINTERFACE_USB_DEVICE, NULL, 0, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
-
-	if (hDevInfo != INVALID_HANDLE_VALUE)
+	if (GetRawInputDeviceList(NULL, &nDevices, sizeof(RAWINPUTDEVICELIST)) < 0)
 	{
-		DevIntfData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
-		dwMemberIdx = 0;
-
-		SetupDiEnumDeviceInterfaces(hDevInfo, NULL, &GUID_DEVINTERFACE_USB_DEVICE,
-			dwMemberIdx, &DevIntfData);
-
-		while (GetLastError() != ERROR_NO_MORE_ITEMS)
-		{
-			DevData.cbSize = sizeof(DevData);
-
-			SetupDiGetDeviceInterfaceDetail(
-				hDevInfo, &DevIntfData, NULL, 0, &dwSize, NULL);
-
-			DevIntfDetailData = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwSize);
-			DevIntfDetailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
-
-			if (SetupDiGetDeviceInterfaceDetail(hDevInfo, &DevIntfData,
-				DevIntfDetailData, dwSize, &dwSize, &DevData))
-			{
-				if (NULL != _tcsstr((TCHAR*)DevIntfDetailData->DevicePath, _T("vid_10cf&pid_8090")))
-				{
-					hKey = SetupDiOpenDevRegKey(
-						hDevInfo,
-						&DevData,
-						DICS_FLAG_GLOBAL,
-						0,
-						DIREG_DEV,
-						KEY_READ
-					);
-
-					dwType = REG_SZ;
-					dwSize = sizeof(lpData);
-					RegQueryValueEx(hKey, _T("PortName"), NULL, &dwType, lpData, &dwSize);
-					RegCloseKey(hKey);
-
-					AppendMenu(hSubMenu, MF_STRING, TRUE, (LPCWSTR)lpData);
-				}
-			}
-
-			HeapFree(GetProcessHeap(), 0, DevIntfDetailData);
-
-			SetupDiEnumDeviceInterfaces(
-				hDevInfo, NULL, &GUID_DEVINTERFACE_USB_DEVICE, ++dwMemberIdx, &DevIntfData);
-		}
-
-		SetupDiDestroyDeviceInfoList(hDevInfo);
+		OutputDebugString(_T("GetRawInputDeviceList API failed"));
+		return FALSE;
 	}
 
-	//function_validate = GetRawInputDeviceList(NULL, &nDevices, sizeof(RAWINPUTDEVICELIST));
+	PRAWINPUTDEVICELIST pRawInputDeviceList;
+	pRawInputDeviceList = new RAWINPUTDEVICELIST[sizeof(RAWINPUTDEVICELIST) * nDevices];
 
-	//if (function_validate == -1)
-	//{
-	//	MessageBox(hWnd, L"Error in GetRawInputDeviceList function", L"WINAPI status", MB_OK);
-	//}
+	if (pRawInputDeviceList == NULL)
+	{
+		OutputDebugString(_T("Memory not allocated for pRawInputDeviceList "));
+		return FALSE;
+	}
 
-	//if (hSubMenu == NULL)
-	//{
-	//	MessageBox(hWnd, L"Menu not created", L"Menu updation status", MB_OK);
-	//}
-	//else
-	//{
-	//	PRAWINPUTDEVICELIST pRawInputDeviceList;
-	//	pRawInputDeviceList = new RAWINPUTDEVICELIST[sizeof(RAWINPUTDEVICELIST) * nDevices];
-	//	int nResult;
-	//	nResult = GetRawInputDeviceList(pRawInputDeviceList, &nDevices, sizeof(RAWINPUTDEVICELIST));
+	int nResult;
+	nResult = GetRawInputDeviceList(pRawInputDeviceList, &nDevices, sizeof(RAWINPUTDEVICELIST));
 
-	//	for (UINT i = 0; i < nDevices; i++)
-	//	{
-	//		UINT nBufferSize = 0;
-	//		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICENAME, NULL, &nBufferSize);
+	if (nResult < 0)
+	{
+		OutputDebugString(_T("GetRawInputDeviceList API failed"));
+		return FALSE;
+	}
 
-	//		WCHAR* wcDeviceName = new WCHAR[nBufferSize + 1];
+	int menu_count = GetMenuItemCount(hSubMenu);
 
-	//		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICENAME, wcDeviceName, &nBufferSize);
+	if (menu_count < 0)
+	{
+		OutputDebugString(_T("GetMenuItemCount API failed"));
+		return FALSE;
+	}
 
-	//		RID_DEVICE_INFO rdiDeviceInfo;
-	//		rdiDeviceInfo.cbSize = sizeof(RID_DEVICE_INFO);
-	//		nBufferSize = rdiDeviceInfo.cbSize;
+	if (menu_count > 1)
+	{
+		for (int flag1 = 0; flag1 < menu_count - 1; flag1++)
+		{
+			if (!DeleteMenu(hSubMenu, 1, MF_BYPOSITION))
+			{
+				OutputDebugString(_T("DeleteMenu API failed"));
+				return FALSE;
+			}
+		}
+	}
 
-	//		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[i].hDevice, RIDI_DEVICEINFO, &rdiDeviceInfo, &nBufferSize);
+	for (UINT flag2 = 0; flag2 < nDevices; flag2++)
+	{
+		UINT nBufferSize = 0;
+		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[flag2].hDevice,
+			RIDI_DEVICENAME,               
+			NULL,                          
+			&nBufferSize);      
 
-	//		AppendMenu(hSubMenu, MF_STRING, TRUE, wcDeviceName);
+		if (nResult < 0)
+		{
+			OutputDebugString(_T("GetRawInputDeviceInfo API failed"));
+			return FALSE;
+		}
 
-	//	}
-	//}
-	DeleteMenu(hSubMenu, 0, MF_BYPOSITION);
+		WCHAR* wcDeviceName = new WCHAR[nBufferSize + 1];
+
+		if (wcDeviceName == NULL)
+		{
+			OutputDebugString(_T("Memory not allocated for wcDeviceName "));
+			return FALSE;
+		}
+
+		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[flag2].hDevice,
+			RIDI_DEVICENAME,               
+			wcDeviceName,                 
+			&nBufferSize);                
+
+		if (nResult < 0)
+		{
+			OutputDebugString(_T("GetRawInputDeviceInfo API failed"));
+			return FALSE;
+		}
+
+		RID_DEVICE_INFO rdiDeviceInfo;
+		rdiDeviceInfo.cbSize = sizeof(RID_DEVICE_INFO);
+		nBufferSize = rdiDeviceInfo.cbSize;
+
+		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[flag2].hDevice,
+			RIDI_DEVICEINFO,
+			&rdiDeviceInfo,
+			&nBufferSize);
+
+		if (nResult < 0)
+		{
+			OutputDebugString(_T("GetRawInputDeviceInfo API failed"));
+			return FALSE;
+		}
+
+		if (!AppendMenu(hSubMenu, MF_STRING, TRUE, wcDeviceName))
+		{
+			OutputDebugString(_T("AppendMenu API failed"));
+			return FALSE;
+		}
+
+		if(wcDeviceName)
+			delete[] wcDeviceName;
+
+	}
+
+	if(pRawInputDeviceList)
+		delete[] pRawInputDeviceList;
+
+	return TRUE;
 }
