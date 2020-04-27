@@ -10,8 +10,12 @@
 #include <tchar.h>
 #include <setupapi.h>
 #include <initguid.h>
+#include <PortableDeviceApi.h>
+#include <PortableDeviceTypes.h>
+#include <stdlib.h>
+#include <new>
+using namespace std;
 #define MAX_LOADSTRING 100
-
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -25,6 +29,9 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 BOOL addmenu(HWND);
+PWSTR DisplayFriendlyName(
+	_In_ IPortableDeviceManager* deviceManager,
+	_In_ PCWSTR                  pnpDeviceID);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -35,7 +42,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(lpCmdLine);
 
     // TODO: Place code here.
-
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_LISTUSBDEVICES, szWindowClass, MAX_LOADSTRING);
@@ -208,31 +214,10 @@ BOOL addmenu(HWND hWnd)
 	HMENU hmenu = GetMenu(hWnd);
 	HMENU hSubMenu = GetSubMenu(hmenu, 2);
 	UINT nDevices = 0;
-
-	if (GetRawInputDeviceList(NULL, &nDevices, sizeof(RAWINPUTDEVICELIST)) < 0)
-	{
-		OutputDebugString(_T("GetRawInputDeviceList API failed"));
-		return FALSE;
-	}
-
-	PRAWINPUTDEVICELIST pRawInputDeviceList;
-	pRawInputDeviceList = new RAWINPUTDEVICELIST[sizeof(RAWINPUTDEVICELIST) * nDevices];
-
-	if (pRawInputDeviceList == NULL)
-	{
-		OutputDebugString(_T("Memory not allocated for pRawInputDeviceList "));
-		return FALSE;
-	}
-
-	int nResult;
-	nResult = GetRawInputDeviceList(pRawInputDeviceList, &nDevices, sizeof(RAWINPUTDEVICELIST));
-
-	if (nResult < 0)
-	{
-		OutputDebugString(_T("GetRawInputDeviceList API failed"));
-		return FALSE;
-	}
-
+	DWORD cPnPDeviceCount;
+	IPortableDeviceManager*  pPortableDeviceManager;
+	DWORD dwIndex = 0;
+	PWSTR friendlyname;
 	int menu_count = GetMenuItemCount(hSubMenu);
 
 	if (menu_count < 0)
@@ -253,67 +238,112 @@ BOOL addmenu(HWND hWnd)
 		}
 	}
 
-	for (UINT flag2 = 0; flag2 < nDevices; flag2++)
+	HRESULT hr = CoCreateInstance(CLSID_PortableDeviceManager,
+		NULL,
+		CLSCTX_INPROC_SERVER,
+		IID_PPV_ARGS(&pPortableDeviceManager));
+
+	if (FAILED(hr))
 	{
-		UINT nBufferSize = 0;
-		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[flag2].hDevice,
-			RIDI_DEVICENAME,               
-			NULL,                          
-			&nBufferSize);      
-
-		if (nResult < 0)
-		{
-			OutputDebugString(_T("GetRawInputDeviceInfo API failed"));
-			return FALSE;
-		}
-
-		WCHAR* wcDeviceName = new WCHAR[nBufferSize + 1];
-
-		if (wcDeviceName == NULL)
-		{
-			OutputDebugString(_T("Memory not allocated for wcDeviceName "));
-			return FALSE;
-		}
-
-		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[flag2].hDevice,
-			RIDI_DEVICENAME,               
-			wcDeviceName,                 
-			&nBufferSize);                
-
-		if (nResult < 0)
-		{
-			OutputDebugString(_T("GetRawInputDeviceInfo API failed"));
-			return FALSE;
-		}
-
-		RID_DEVICE_INFO rdiDeviceInfo;
-		rdiDeviceInfo.cbSize = sizeof(RID_DEVICE_INFO);
-		nBufferSize = rdiDeviceInfo.cbSize;
-
-		nResult = GetRawInputDeviceInfo(pRawInputDeviceList[flag2].hDevice,
-			RIDI_DEVICEINFO,
-			&rdiDeviceInfo,
-			&nBufferSize);
-
-		if (nResult < 0)
-		{
-			OutputDebugString(_T("GetRawInputDeviceInfo API failed"));
-			return FALSE;
-		}
-
-		if (!AppendMenu(hSubMenu, MF_STRING, TRUE, wcDeviceName))
-		{
-			OutputDebugString(_T("AppendMenu API failed"));
-			return FALSE;
-		}
-
-		if(wcDeviceName)
-			delete[] wcDeviceName;
-
+		OutputDebugString(_T("Failed to CoCreateInstance CLSID_PortableDeviceManager"));
+		return FALSE;
 	}
 
-	if(pRawInputDeviceList)
-		delete[] pRawInputDeviceList;
+	if (SUCCEEDED(hr))
+	{
+		hr = pPortableDeviceManager->GetDevices(NULL, &cPnPDeviceCount);
+		if (FAILED(hr))
+		{
+			OutputDebugString(_T("Failed to get number of devices on the system"));
+			return FALSE;
+		}
+	}
 
+	if (SUCCEEDED(hr) && (cPnPDeviceCount > 0))
+	{
+		LPWSTR* pPnpDeviceIDs = new (std::nothrow) PWSTR[cPnPDeviceCount];
+		if (pPnpDeviceIDs != NULL)
+		{
+			hr = pPortableDeviceManager->GetDevices(pPnpDeviceIDs, &cPnPDeviceCount);
+			if (SUCCEEDED(hr))
+			{
+				for (dwIndex = 0; dwIndex < cPnPDeviceCount; dwIndex++)
+				{
+					friendlyname = DisplayFriendlyName(pPortableDeviceManager, pPnpDeviceIDs[dwIndex]);
+					if (friendlyname)
+					{
+						if (!AppendMenu(hSubMenu, MF_STRING, TRUE, friendlyname))
+						{
+							OutputDebugString(_T("AppendMenu function failed"));
+							return FALSE;
+						}
+					}
+					else
+					{
+						OutputDebugString(_T("DisplayFriendlyName function failed"));
+						return FALSE;
+					}
+				}
+			}
+			else
+			{
+				OutputDebugString(_T("Failed to get the device list from the system"));
+				return FALSE;
+			}
+			
+			for (DWORD index = 0; index < cPnPDeviceCount; index++)
+			{
+				CoTaskMemFree(pPnpDeviceIDs[index]);
+				pPnpDeviceIDs[index] = nullptr;
+			}
+
+			delete[] pPnpDeviceIDs;
+		}
+	}
 	return TRUE;
+}
+
+PWSTR DisplayFriendlyName(
+	_In_ IPortableDeviceManager* deviceManager,
+	_In_ PCWSTR                  pnpDeviceID)
+{
+	DWORD friendlyNameLength = 0;
+
+	HRESULT hr = deviceManager->GetDeviceFriendlyName(pnpDeviceID, nullptr, &friendlyNameLength);
+	if (FAILED(hr))
+	{
+		OutputDebugString(_T("Failed to get number of characters for device friendly name"));
+		return NULL;
+	}
+	else if (friendlyNameLength > 0)
+	{
+		PWSTR friendlyName = new (std::nothrow) WCHAR[friendlyNameLength];
+		if (friendlyName != nullptr)
+		{
+			ZeroMemory(friendlyName, friendlyNameLength * sizeof(WCHAR));
+			hr = deviceManager->GetDeviceFriendlyName(pnpDeviceID, friendlyName, &friendlyNameLength);
+			if (SUCCEEDED(hr))
+			{
+				return friendlyName;
+			}
+			else
+			{
+				OutputDebugString(_T("GetDeviceFriendlyName function failed"));
+				return NULL;
+			}
+
+			delete[] friendlyName;
+			friendlyName = nullptr;
+		}
+		else
+		{
+			OutputDebugString(_T("Failed to allocate memory for the device friendly name string"));
+			return NULL;
+		}
+	}
+	else
+	{
+		OutputDebugString(_T("The device did not provide a friendly name"));
+		return NULL;
+	}
 }
