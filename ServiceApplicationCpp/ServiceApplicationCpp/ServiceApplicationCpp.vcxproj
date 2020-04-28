@@ -20,10 +20,10 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{4322348E-A71D-4F32-BB40-6DC2D942CB9D}</ProjectGuid>
+    <ProjectGuid>{106E167E-1025-4016-BBB1-8B98B43F7A7A}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>ServiceApplicationCpp</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -154,11 +154,7 @@
     <ClCompile Include="ServiceApplicationCpp.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="resource.h" />
     <ClInclude Include="ServiceApplicationCpp.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="ServiceApplicationCpp.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

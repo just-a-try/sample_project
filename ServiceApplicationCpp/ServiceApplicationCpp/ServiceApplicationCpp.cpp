@@ -1,218 +1,275 @@
-// ConsoleApplication4.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-
-#include"ServiceApplicationCpp.h"
+#include "ServiceApplicationCpp.h"
 
 FILE *fp = NULL;
 SYSTEMTIME time_info;
-TIME t;
-DWORD sleep_time = 65000;
+TIME time_structure;
 
-int main(int argc, TCHAR *argv[])
+int main(int argc, CHAR *argv[])
 {
-	SERVICE_TABLE_ENTRY ServiceTable[] =
+	BOOL bServiceCtrlDispatcher = FALSE;
+
+	if (lstrcmpiA(argv[1], "install") == 0)
 	{
-		{(LPWSTR)SERVICE_NAME, (LPSERVICE_MAIN_FUNCTION)ServiceMain},
-		{NULL, NULL}
-	};
-
-	if (StartServiceCtrlDispatcher(ServiceTable) == FALSE)
-	{
-		return GetLastError();
-	}
-
-	return 0;
-}
-
-VOID WINAPI ServiceMain(DWORD argc, LPTSTR *argv)
-{
-	DWORD Status = E_FAIL;
-
-	// Register our service control handler with the SCM
-	g_StatusHandle = RegisterServiceCtrlHandler(SERVICE_NAME, ServiceCtrlHandler);
-
-	if (g_StatusHandle == NULL)
-	{
-		return;
-	}
-
-	// Tell the service controller we are starting
-	ZeroMemory(&g_ServiceStatus, sizeof(g_ServiceStatus));
-	g_ServiceStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
-	g_ServiceStatus.dwControlsAccepted = 0;
-	g_ServiceStatus.dwCurrentState = SERVICE_START_PENDING;
-	g_ServiceStatus.dwWin32ExitCode = 0;
-	g_ServiceStatus.dwServiceSpecificExitCode = 0;
-	g_ServiceStatus.dwCheckPoint = 0;
-
-	if (SetServiceStatus(g_StatusHandle, &g_ServiceStatus) == FALSE)
-	{
-		OutputDebugString(TEXT(
-			"My Sample Service: ServiceMain: SetServiceStatus returned error"));
-	}
-
-	/*
-	 * Perform tasks necessary to start the service here
-	 */
-	if (Start())
-	{
-		OutputDebugString(TEXT(
-			"Service Start function failed"));
-	}
-
-	// Create a service stop event to wait on later
-	g_ServiceStopEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-	if (g_ServiceStopEvent == NULL)
-	{
-		// Error creating event
-		// Tell service controller we are stopped and exit
-		g_ServiceStatus.dwControlsAccepted = 0;
-		g_ServiceStatus.dwCurrentState = SERVICE_STOPPED;
-		g_ServiceStatus.dwWin32ExitCode = GetLastError();
-		g_ServiceStatus.dwCheckPoint = 1;
-
-		if (SetServiceStatus(g_StatusHandle, &g_ServiceStatus) == FALSE)
+		if (!ServiceInstall())
 		{
-			OutputDebugString(TEXT(
-				"My Sample Service: ServiceMain: SetServiceStatus returned error"));
+			printf("ServiceInstall function failed\n");
+			exit(1);
 		}
-		return;
 	}
-
-	// Tell the service controller we are started
-	g_ServiceStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
-	g_ServiceStatus.dwCurrentState = SERVICE_RUNNING;
-	g_ServiceStatus.dwWin32ExitCode = 0;
-	g_ServiceStatus.dwCheckPoint = 0;
-
-	if (SetServiceStatus(g_StatusHandle, &g_ServiceStatus) == FALSE)
+	else if (lstrcmpiA(argv[1], "Start") == 0)
 	{
-		OutputDebugString(TEXT(
-			"My Sample Service: ServiceMain: SetServiceStatus returned error"));
-	}
-
-	// Start a thread that will perform the main task of the service
-	HANDLE hThread = CreateThread(NULL, 0, ServiceWorkerThread, NULL, 0, NULL);
-
-	// Wait until our worker thread exits signaling that the service needs to stop
-	WaitForSingleObject(hThread, INFINITE);
-
-
-	/*
-	 * Perform any cleanup tasks
-	 */
-
-	CloseHandle(g_ServiceStopEvent);
-
-	// Tell the service controller we are stopped
-	g_ServiceStatus.dwControlsAccepted = 0;
-	g_ServiceStatus.dwCurrentState = SERVICE_STOPPED;
-	g_ServiceStatus.dwWin32ExitCode = 0;
-	g_ServiceStatus.dwCheckPoint = 3;
-
-	if (SetServiceStatus(g_StatusHandle, &g_ServiceStatus) == FALSE)
-	{
-		OutputDebugString(TEXT(
-			"My Sample Service: ServiceMain: SetServiceStatus returned error"));
-	}
-
-	return;
-}
-
-VOID WINAPI ServiceCtrlHandler(DWORD CtrlCode)
-{
-	switch (CtrlCode)
-	{
-	case SERVICE_CONTROL_STOP:
-
-		if (g_ServiceStatus.dwCurrentState != SERVICE_RUNNING)
-			break;
-
-		/*
-		 * Perform tasks necessary to stop the service here
-		 */
-		if (Stop())
+		if (!ServiceStart())
 		{
-			OutputDebugString(TEXT(
-				"Service Stop function failed"));
+			printf("ServiceStart function failed\n");
+			exit(1);
 		}
-
-		g_ServiceStatus.dwControlsAccepted = 0;
-		g_ServiceStatus.dwCurrentState = SERVICE_STOP_PENDING;
-		g_ServiceStatus.dwWin32ExitCode = 0;
-		g_ServiceStatus.dwCheckPoint = 4;
-
-		if (SetServiceStatus(g_StatusHandle, &g_ServiceStatus) == FALSE)
-		{
-			OutputDebugString(TEXT(
-				"My Sample Service: ServiceCtrlHandler: SetServiceStatus returned error"));
-		}
-
-		// This will signal the worker thread to start shutting down
-		SetEvent(g_ServiceStopEvent);
-
-		break;
-
-	default:
-		break;
 	}
-}
-
-DWORD WINAPI ServiceWorkerThread(LPVOID lpParam)
-{
-	while (WaitForSingleObject(g_ServiceStopEvent, 0) != WAIT_OBJECT_0)
+	else if (lstrcmpiA(argv[1], "Stop") == 0)
 	{
-		while (1)
+		if (!ServiceStop())
 		{
-			Sleep(sleep_time);
-			GetLocalTime(&time_info);
-			t.hour = time_info.wHour;
-			t.minute = time_info.wMinute;
-
-			if (!(fp = fopen("time.txt", "ab")))
-			{
-				OutputDebugString(TEXT(
-					"file not opened properly"));
-				break;
-			}
-			else if (!(fp = fopen("time.txt", "wb")))
-			{
-				OutputDebugString(TEXT(
-					"file not opened properly"));
-				break;
-			}
-
-			if (fwrite(&t, 4, NMEB, fp) == EOF)
-			{
-				OutputDebugString(TEXT(
-					"fwrite is not excecuted successfully"));
-				break;
-			}
-
-			if (fp)
-			{
-				if (fclose(fp) == EOF)
+			printf("ServiceStop function failed\n");
+			exit(1);
+		}
+	}
+	else if (lstrcmpiA(argv[1], "delete") == 0)
+	{
+		if (!ServiceDelete())
+		{
+			printf("ServiceDelete function failed\n");
+			exit(1);
+		}
+	}
+	else
+	{
+		SERVICE_TABLE_ENTRY  DispatchTable[] =
 				{
-					OutputDebugString(TEXT(
-						"The file is not closed successfully"));
-				}
-			}
-		}
+					{(LPWSTR)SERVICE_NAME, (LPSERVICE_MAIN_FUNCTION)ServiceMain},
+					{NULL, NULL}
+				};
 
-		if (fp)
+		bServiceCtrlDispatcher = StartServiceCtrlDispatcher(DispatchTable);
+
+		if (FALSE == bServiceCtrlDispatcher)
 		{
-			if (fclose(fp) == EOF)
-			{
-				OutputDebugString(TEXT(
-					"The file is not closed successfully"));
-			}
+			printf("StartServiceCtrlDispatcher failed\n");
 		}
 	}
-
-	return ERROR_SUCCESS;
+	exit(0);
 }
 
-BOOL Start(VOID)
+void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpArgv)
+{
+	BOOL bServicesStatus = FALSE;
+	hServiceStatusHandle = RegisterServiceCtrlHandler(SERVICE_NAME, ServiceControlHandler);
+
+	if (NULL == hServiceStatusHandle)
+	{
+		printf("RegisterServiceCtrlHandler failed\n");
+	}
+
+	ServiceStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
+	ServiceStatus.dwServiceSpecificExitCode = 0;
+
+	ServiceReportStatus(SERVICE_START_PENDING, NO_ERROR, 3000);
+
+	bServicesStatus = SetServiceStatus(hServiceStatusHandle, &ServiceStatus);
+
+	if (FALSE == bServicesStatus)
+	{
+		printf("SetServiceStatus failed\n");
+	}
+
+	ServiceInit(dwArgc, lpArgv);
+
+}
+
+void WINAPI ServiceControlHandler(DWORD dwControl)
+{
+	switch (dwControl)
+	{
+		case SERVICE_CONTROL_STOP:
+		{	
+			ServiceReportStatus(SERVICE_STOPPED, NO_ERROR, 0);
+			break;
+		}
+
+		default:
+			break;
+	}
+}
+
+void ServiceReportStatus(
+	DWORD dwCurrentState,
+	DWORD dwWin32ExitCode,
+	DWORD dwWaitHint)
+{
+	static DWORD dwCheckPoint = 1;
+	BOOL bSetServiceStatus = FALSE;
+
+	ServiceStatus.dwCurrentState = dwCurrentState;
+	ServiceStatus.dwServiceSpecificExitCode = dwWin32ExitCode;
+	ServiceStatus.dwWaitHint = dwWaitHint;
+
+	if (dwCurrentState == SERVICE_START_PENDING)
+	{
+		ServiceStatus.dwControlsAccepted = 0;
+	}
+	else
+	{
+		ServiceStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
+	}
+
+	if ((dwCurrentState == SERVICE_RUNNING) || (dwCurrentState == SERVICE_STOPPED))
+	{
+		ServiceStatus.dwCheckPoint = 0;
+	}
+	else
+	{
+		ServiceStatus.dwCheckPoint = dwCheckPoint++;
+	}
+
+	bSetServiceStatus = SetServiceStatus(hServiceStatusHandle, &ServiceStatus);
+
+	if (FALSE == bSetServiceStatus)
+	{
+		printf("SetServiceStatus failed\n");
+	}
+
+}
+
+void ServiceInit(DWORD gwArgc, LPTSTR *lpArgv)
+{
+	hServiceEvent = CreateEvent(
+		NULL,
+		TRUE,
+		FALSE,
+		NULL);
+
+	if (NULL == hServiceEvent)
+	{
+		ServiceReportStatus(SERVICE_STOPPED, NO_ERROR, 0);
+	}
+	else
+	{
+		ServiceReportStatus(SERVICE_RUNNING, NO_ERROR, 0);
+	}
+
+	while (1)
+	{
+		WaitForSingleObject(hServiceEvent, INFINITE);
+		ServiceReportStatus(SERVICE_STOPPED, NO_ERROR, 0); 
+	}
+}
+
+
+/* @author: Subhash 
+   @function: This function install the service to the Service control manager database
+   @return: Returns boolean true if fuction succeed or false when fails
+*/
+bool ServiceInstall(void)
+{
+	SC_HANDLE  hScOpenSCManger = NULL;
+	SC_HANDLE hScCreateService = NULL;
+	DWORD dwGetModuleFileName = 0;
+	TCHAR szPath[MAX_PATH];
+
+	dwGetModuleFileName = GetModuleFileName(NULL, szPath, MAX_PATH);
+
+	if (FALSE == dwGetModuleFileName)
+	{
+		printf("Service installation failed\n");
+		return FALSE;
+	}
+
+	hScOpenSCManger = OpenSCManager(
+		NULL,
+		NULL,
+		SC_MANAGER_ALL_ACCESS);
+
+	if (NULL == hScOpenSCManger)
+	{
+		printf("OpenSCManager failed\n");
+		return FALSE;
+	}
+
+	hScCreateService = CreateService(
+		hScOpenSCManger,
+		SERVICE_NAME,
+		SERVICE_NAME,
+		SERVICE_ALL_ACCESS,
+		SERVICE_WIN32_OWN_PROCESS,
+		SERVICE_DEMAND_START,
+		SERVICE_ERROR_NORMAL,
+		szPath,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL);
+
+	if (NULL == hScCreateService)
+	{
+		CloseServiceHandle(hScOpenSCManger);
+		printf("CreateService failed\n");
+		return FALSE;
+	}
+
+	CloseServiceHandle(hScCreateService);
+	CloseServiceHandle(hScOpenSCManger);
+	return TRUE;
+}
+
+/* @author: Subhash 
+   @function: This function delete the service from the Service control manager database
+   @return: Returns boolean true if fuction succeed or false when fails
+*/
+bool ServiceDelete(void)
+{
+	SC_HANDLE  hScOpenSCManger = NULL;
+	SC_HANDLE hScOpenService = NULL;
+	BOOL bDeleteService = FALSE;
+
+	hScOpenSCManger = OpenSCManager(
+		NULL,
+		NULL,
+		SC_MANAGER_ALL_ACCESS);
+
+	if (NULL == hScOpenSCManger)
+	{
+		printf("OpenSCManager failed\n");
+		return FALSE;
+	}
+
+	hScOpenService = OpenService(
+		hScOpenSCManger,
+		SERVICE_NAME,
+		SERVICE_ALL_ACCESS);
+
+	if (NULL == hScOpenService)
+	{
+		printf("OpenService failed failed\n");
+		return FALSE;
+	}
+	
+	bDeleteService = DeleteService(hScOpenService);
+
+	if (FALSE == bDeleteService)
+	{
+		printf("DeleteService failed\n");
+		return FALSE;
+	}
+
+	CloseServiceHandle(hScOpenService);
+	CloseServiceHandle(hScOpenSCManger);
+	return TRUE;
+}
+
+/* @author: Subhash 
+   @function: This function starts the service 
+   @return: Returns boolean true if fuction succeed or false when fails
+*/
+bool ServiceStart(void)
 {
 	BOOL bStartService = FALSE;
 	SERVICE_STATUS_PROCESS SvcStatusProcess;
@@ -228,8 +285,7 @@ BOOL Start(VOID)
 
 	if (NULL == hOpenSCManager)
 	{
-		OutputDebugString(TEXT(
-			"OpenSCManager failed"));
+		printf("OpenSCManager failed\n");
 		return FALSE;
 	}
 
@@ -240,8 +296,7 @@ BOOL Start(VOID)
 
 	if (NULL == hOpenService)
 	{
-		OutputDebugString(TEXT(
-			"OpenService failed"));
+		printf("OpenService failed\n");
 		CloseServiceHandle(hOpenSCManager);
 		return FALSE;
 	}
@@ -255,16 +310,14 @@ BOOL Start(VOID)
 
 	if (FALSE == bQueryServiceStatus)
 	{
-		OutputDebugString(TEXT(
-			"QuerryService failed"));
+		printf("QuerryService failed\n");
 		return FALSE;
 	}
 
 	if ((SvcStatusProcess.dwCurrentState != SERVICE_STOPPED) &&
 		(SvcStatusProcess.dwCurrentState != SERVICE_STOP_PENDING))
 	{
-		OutputDebugString(TEXT(
-			"Service already running"));
+		printf("Service already running\n");
 	}
 
 	while (SvcStatusProcess.dwCurrentState == SERVICE_STOP_PENDING)
@@ -278,8 +331,7 @@ BOOL Start(VOID)
 
 		if (FALSE == bQueryServiceStatus)
 		{
-			OutputDebugString(TEXT(
-				"QuerryService failed"));
+			printf("QuerryService failed\n");
 			CloseServiceHandle(hOpenService);
 			CloseServiceHandle(hOpenSCManager);
 			return FALSE;
@@ -295,7 +347,6 @@ BOOL Start(VOID)
 	{
 		CloseServiceHandle(hOpenService);
 		CloseServiceHandle(hOpenSCManager);
-		return FALSE;
 	}
 
 	bQueryServiceStatus = QueryServiceStatusEx(
@@ -307,25 +358,33 @@ BOOL Start(VOID)
 
 	if (FALSE == bQueryServiceStatus)
 	{
-		OutputDebugString(TEXT(
-			"QuerryService failed"));
+		printf("QuerryService failed\n");
 		CloseServiceHandle(hOpenService);
 		CloseServiceHandle(hOpenSCManager);
 		return FALSE;
 	}
+
+	HANDLE hThread = CreateThread(NULL, 0, ServiceWorkerThread, NULL, 0, NULL);
+
+	WaitForSingleObject(hThread, INFINITE);
 
 	if (SvcStatusProcess.dwCurrentState != SERVICE_RUNNING)
 	{
 		CloseServiceHandle(hOpenService);
 		CloseServiceHandle(hOpenSCManager);
-		return FALSE;
 	}
+
 	CloseServiceHandle(hOpenService);
 	CloseServiceHandle(hOpenSCManager);
 	return TRUE;
+
 }
 
-BOOL Stop(VOID)
+/* @author: Subhash 
+   @function: This function stops the service 
+   @return: Returns boolean true if fuction succeed or false when fails
+*/
+bool ServiceStop(void)
 {
 	SERVICE_STATUS_PROCESS SvcStatusProcess;
 	SC_HANDLE hOpenSCManager = NULL;
@@ -341,8 +400,7 @@ BOOL Stop(VOID)
 
 	if (NULL == hOpenSCManager)
 	{
-		OutputDebugString(TEXT(
-			"OpenSCManager failed"));
+		printf("OpenSCManager failed\n");
 		return FALSE;
 	}
 
@@ -353,8 +411,7 @@ BOOL Stop(VOID)
 
 	if (NULL == hOpenService)
 	{
-		OutputDebugString(TEXT(
-			"OpenService failed"));
+		printf("OpenService failed\n");
 		CloseServiceHandle(hOpenSCManager);
 		return FALSE;
 	}
@@ -368,8 +425,7 @@ BOOL Stop(VOID)
 
 	if (FALSE == bQueryServiceStatus)
 	{
-		OutputDebugString(TEXT(
-			"QuerryService failed"));
+		printf("QueryServiceStatusEx failed\n");
 		CloseServiceHandle(hOpenService);
 		CloseServiceHandle(hOpenSCManager);
 		return FALSE;
@@ -382,8 +438,7 @@ BOOL Stop(VOID)
 
 	if (FALSE == bControlService)
 	{
-		OutputDebugString(TEXT(
-			"Control Service failed"));
+		printf("ControlService failed\n");
 		return FALSE;
 	}
 
@@ -398,8 +453,7 @@ BOOL Stop(VOID)
 
 		if (FALSE == bQueryServiceStatus)
 		{
-			OutputDebugString(TEXT(
-				"QuerryService failed"));
+			printf("QueryServiceStatusEx failed\n");
 			CloseServiceHandle(hOpenService);
 			CloseServiceHandle(hOpenSCManager);
 			return FALSE;
@@ -407,8 +461,7 @@ BOOL Stop(VOID)
 
 		if (SvcStatusProcess.dwCurrentState == SERVICE_STOPPED)
 		{
-			OutputDebugString(TEXT(
-				"Service stopped"));
+			printf("Service stopped failed\n");
 			break;
 		}
 	}
@@ -416,4 +469,54 @@ BOOL Stop(VOID)
 	CloseServiceHandle(hOpenService);
 	CloseServiceHandle(hOpenSCManager);
 	return TRUE;
+}
+
+/* @author: Subhash 
+   @function: This function starts the service 
+   @param: void pointer for thread
+   @return: Returns the error status of the function
+*/
+DWORD WINAPI ServiceWorkerThread(void)
+{
+	while (WaitForSingleObject(hServiceEvent, 0) != WAIT_OBJECT_0)
+	{
+		while (1)
+		{
+			Sleep(SLEEP_TIME);
+			GetLocalTime(&time_info);
+			time_structure.hour = time_info.wHour;
+			time_structure.minute = time_info.wMinute;
+
+			if (!(fp = fopen("time.txt", "wb")))
+			{
+				printf("file not opened properly in write mode\n");
+				break;
+			}
+
+			if (fwrite(&time_structure, TIME_STRUCT_SIZE, NMEB, fp) == EOF)
+			{
+				printf("fwrite is not excecuted successfully\n");
+				break;
+			}
+
+			if (fp)
+			{
+				if (fclose(fp) == EOF)
+				{
+					printf("The file is not closed successfully\n");
+					break;
+				}
+			}
+		}
+
+		if (fp)
+		{
+			if (fclose(fp) == EOF)
+			{
+				printf("The file is not closed successfully\n");
+			}
+		}
+	}
+
+	return ERROR_SUCCESS;
 }

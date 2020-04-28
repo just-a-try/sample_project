@@ -1,25 +1,31 @@
-#pragma once
-#pragma once
-#include<Windows.h>
+#include <Windows.h>
 #include <iostream>
 #pragma warning(disable : 4996)
-
+#define SLEEP_TIME 5000
 #define NMEB 1
-
+#define TIME_STRUCT_SIZE 5
+#pragma pack(1)
 typedef struct time
 {
 	WORD hour;
+	char colon = ':';
 	WORD minute;
 }TIME;
 
-SERVICE_STATUS        g_ServiceStatus = { 0 };
-SERVICE_STATUS_HANDLE g_StatusHandle = NULL;
-HANDLE                g_ServiceStopEvent = INVALID_HANDLE_VALUE;
+#define SERVICE_NAME TEXT("Current Time Saving Service")
+SERVICE_STATUS  ServiceStatus = { 0 };
+SERVICE_STATUS_HANDLE hServiceStatusHandle = NULL;
+HANDLE hServiceEvent = NULL;
 
-VOID WINAPI ServiceMain(DWORD argc, LPTSTR *argv);
-VOID WINAPI ServiceCtrlHandler(DWORD);
-DWORD WINAPI ServiceWorkerThread(LPVOID lpParam);
-BOOL Start(VOID);
-BOOL Stop(VOID);
-
-#define SERVICE_NAME  TEXT("Current time Saving Service") 
+DWORD WINAPI ServiceWorkerThread(void);
+void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpArgv);
+void WINAPI ServiceControlHandler(DWORD dwControl);
+void ServiceReportStatus(
+	DWORD dwCurrentState,
+	DWORD dwWin32ExitCode,
+	DWORD dwWaitHint);
+void ServiceInit(DWORD dwArgc, LPTSTR *lpArgv);
+bool ServiceInstall(void);
+bool ServiceDelete(void);
+bool ServiceStart(void);
+bool ServiceStop(void);
