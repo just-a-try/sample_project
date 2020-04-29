@@ -24,17 +24,17 @@
     <ClInclude Include="Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MinimizeWindows.h">
+    <ClInclude Include="MinimizeAllOpenWindows.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="MinimizeWindows.cpp">
+    <ClCompile Include="MinimizeAllOpenWindows.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="MinimizeWindows.rc">
+    <ResourceCompile Include="MinimizeAllOpenWindows.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
@@ -42,7 +42,7 @@
     <Image Include="small.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="MinimizeWindows.ico">
+    <Image Include="MinimizeAllOpenWindows.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

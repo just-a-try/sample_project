@@ -174,13 +174,6 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     {
     case WM_INITDIALOG:
         return (INT_PTR)TRUE;
-	case WM_MOUSEHOVER:
-		SetDlgItemTextA(
-			hDlg,
-			IDC_EDIT,
-			"Mouse hover"
-		);
-		return (INT_PTR)TRUE;
     case WM_COMMAND:
         if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
         {

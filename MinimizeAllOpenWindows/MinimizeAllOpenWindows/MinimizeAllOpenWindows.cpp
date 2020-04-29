@@ -1,11 +1,11 @@
-// MinimizeWindows.cpp : Defines the entry point for the application.
+// MinimizeAllOpenWindows.cpp : Defines the entry point for the application.
 //
 
 #include "framework.h"
-#include "MinimizeWindows.h"
+#include "MinimizeAllOpenWindows.h"
+#include "Resource.h"
 #include <shlobj.h>
 #include <exdisp.h>
-#include "Resource.h"
 
 #define MAX_LOADSTRING 100
 
@@ -19,8 +19,7 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    MinimizeAll(HWND, UINT, WPARAM, LPARAM);
-
+INT_PTR CALLBACK    MinimizeAllOpenWindows(HWND, UINT, WPARAM, LPARAM);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -34,7 +33,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_MINIMIZEWINDOWS, szWindowClass, MAX_LOADSTRING);
+    LoadStringW(hInstance, IDC_MINIMIZEALLOPENWINDOWS, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
     // Perform application initialization:
@@ -43,7 +42,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         return FALSE;
     }
 
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MINIMIZEWINDOWS));
+    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MINIMIZEALLOPENWINDOWS));
 
     MSG msg;
 
@@ -78,10 +77,10 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.cbClsExtra     = 0;
     wcex.cbWndExtra     = 0;
     wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MINIMIZEWINDOWS));
+    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MINIMIZEALLOPENWINDOWS));
     wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_MINIMIZEWINDOWS);
+    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_MINIMIZEALLOPENWINDOWS);
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
@@ -109,10 +108,12 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    {
       return FALSE;
    }
+
    //ShowWindow(hWnd, nCmdShow);
 
-   DialogBox(hInst, MAKEINTRESOURCE(ID_MINIMIZE_DIALOG), hWnd, MinimizeAll);
-   
+   DialogBox(hInst, MAKEINTRESOURCE(ID_MINIMIZE_DIALOG), hWnd, MinimizeAllOpenWindows);
+
+   DestroyWindow(hWnd);
    //UpdateWindow(hWnd);
 
    return TRUE;
@@ -185,7 +186,8 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     }
     return (INT_PTR)FALSE;
 }
-INT_PTR CALLBACK MinimizeAll(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+
+INT_PTR CALLBACK MinimizeAllOpenWindows(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
 	switch (message)
@@ -196,21 +198,20 @@ INT_PTR CALLBACK MinimizeAll(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
 	case WM_COMMAND:
 		if (LOWORD(wParam) == ID_MINIMIZE_BUTTON)
 		{
-			CoInitialize(NULL);
-
-			// Create a Shell object pointer...
 			IShellDispatch* pShell = NULL;
 			HRESULT hr = CoCreateInstance(CLSID_Shell, NULL, CLSCTX_SERVER, IID_IDispatch, (void**)&pShell);
+
 			if (SUCCEEDED(hr))
 			{
-				// Call the MinimizeAll() shell function...
 				pShell->MinimizeAll();
 
-				// Release the COM object when we're finished...
 				pShell->Release();
 			}
+			else
+			{
+				OutputDebugString(L"instance of the CLSID_Shell was not created successfully");
+			}
 
-			CoUninitialize();
 			return (INT_PTR)TRUE;
 		}
 		else if (LOWORD(wParam) == IDCANCEL)

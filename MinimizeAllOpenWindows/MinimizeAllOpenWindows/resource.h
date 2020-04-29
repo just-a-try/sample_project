@@ -1,19 +1,19 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by MinimizeWindows.rc
+// Used by MinimizeAllOpenWindows.rc
 //
 #define IDC_MYICON                      2
-#define IDD_MINIMIZEWINDOWS_DIALOG      102
+#define IDD_MINIMIZEALLOPENWINDOWS_DIALOG 102
 #define IDS_APP_TITLE                   103
 #define IDD_ABOUTBOX                    103
 #define IDM_ABOUT                       104
 #define IDM_EXIT                        105
-#define IDI_MINIMIZEWINDOWS             107
+#define IDI_MINIMIZEALLOPENWINDOWS      107
 #define IDI_SMALL                       108
-#define IDC_MINIMIZEWINDOWS             109
+#define IDC_MINIMIZEALLOPENWINDOWS      109
 #define IDR_MAINFRAME                   128
-#define IDD_DIALOG1                     129
 #define ID_MINIMIZE_DIALOG              129
+#define IDC_BUTTON1                     1000
 #define ID_MINIMIZE_BUTTON              1000
 #define IDC_STATIC                      -1
 

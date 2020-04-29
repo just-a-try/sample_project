@@ -20,9 +20,9 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{1A19409F-C92D-459A-9018-96ABCFA87B03}</ProjectGuid>
+    <ProjectGuid>{A7F2C155-A8E8-44CE-BEC2-DABB6BB65AEB}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>MinimizeWindows</RootNamespace>
+    <RootNamespace>MinimizeAllOpenWindows</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -152,18 +152,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
-    <ClInclude Include="MinimizeWindows.h" />
+    <ClInclude Include="MinimizeAllOpenWindows.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="MinimizeWindows.cpp" />
+    <ClCompile Include="MinimizeAllOpenWindows.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="MinimizeWindows.rc" />
+    <ResourceCompile Include="MinimizeAllOpenWindows.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="MinimizeWindows.ico" />
+    <Image Include="MinimizeAllOpenWindows.ico" />
     <Image Include="small.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
