@@ -2,7 +2,6 @@
 
 FILE *fp = NULL;
 SYSTEMTIME time_info;
-TIME time_structure;
 
 int main(int argc, CHAR *argv[])
 {
@@ -43,10 +42,10 @@ int main(int argc, CHAR *argv[])
 	else
 	{
 		SERVICE_TABLE_ENTRY  DispatchTable[] =
-				{
-					{(LPWSTR)SERVICE_NAME, (LPSERVICE_MAIN_FUNCTION)ServiceMain},
-					{NULL, NULL}
-				};
+		{
+			{(LPWSTR)SERVICE_NAME, (LPSERVICE_MAIN_FUNCTION)ServiceMain},
+			{NULL, NULL}
+		};
 
 		bServiceCtrlDispatcher = StartServiceCtrlDispatcher(DispatchTable);
 
@@ -88,14 +87,14 @@ void WINAPI ServiceControlHandler(DWORD dwControl)
 {
 	switch (dwControl)
 	{
-		case SERVICE_CONTROL_STOP:
-		{	
-			ServiceReportStatus(SERVICE_STOPPED, NO_ERROR, 0);
-			break;
-		}
+	case SERVICE_CONTROL_STOP:
+	{
+		ServiceReportStatus(SERVICE_STOPPED, NO_ERROR, 0);
+		break;
+	}
 
-		default:
-			break;
+	default:
+		break;
 	}
 }
 
@@ -158,12 +157,12 @@ void ServiceInit(DWORD gwArgc, LPTSTR *lpArgv)
 	while (1)
 	{
 		WaitForSingleObject(hServiceEvent, INFINITE);
-		ServiceReportStatus(SERVICE_STOPPED, NO_ERROR, 0); 
+		ServiceReportStatus(SERVICE_STOPPED, NO_ERROR, 0);
 	}
 }
 
 
-/* @author: Subhash 
+/* @author: Subhash
    @function: This function install the service to the Service control manager database
    @return: Returns boolean true if fuction succeed or false when fails
 */
@@ -220,7 +219,7 @@ bool ServiceInstall(void)
 	return TRUE;
 }
 
-/* @author: Subhash 
+/* @author: Subhash
    @function: This function delete the service from the Service control manager database
    @return: Returns boolean true if fuction succeed or false when fails
 */
@@ -251,7 +250,7 @@ bool ServiceDelete(void)
 		printf("OpenService failed failed\n");
 		return FALSE;
 	}
-	
+
 	bDeleteService = DeleteService(hScOpenService);
 
 	if (FALSE == bDeleteService)
@@ -265,8 +264,8 @@ bool ServiceDelete(void)
 	return TRUE;
 }
 
-/* @author: Subhash 
-   @function: This function starts the service 
+/* @author: Subhash
+   @function: This function starts the service
    @return: Returns boolean true if fuction succeed or false when fails
 */
 bool ServiceStart(void)
@@ -380,8 +379,8 @@ bool ServiceStart(void)
 
 }
 
-/* @author: Subhash 
-   @function: This function stops the service 
+/* @author: Subhash
+   @function: This function stops the service
    @return: Returns boolean true if fuction succeed or false when fails
 */
 bool ServiceStop(void)
@@ -471,31 +470,32 @@ bool ServiceStop(void)
 	return TRUE;
 }
 
-/* @author: Subhash 
-   @function: This function starts the service 
+/* @author: Subhash
+   @function: This function starts the service
    @param: void pointer for thread
    @return: Returns the error status of the function
 */
-DWORD WINAPI ServiceWorkerThread(void)
+DWORD WINAPI ServiceWorkerThread(LPVOID lpParam)
 {
+	int validation;
 	while (WaitForSingleObject(hServiceEvent, 0) != WAIT_OBJECT_0)
 	{
 		while (1)
 		{
 			Sleep(SLEEP_TIME);
 			GetLocalTime(&time_info);
-			time_structure.hour = time_info.wHour;
-			time_structure.minute = time_info.wMinute;
 
-			if (!(fp = fopen("time.txt", "wb")))
+			if (!(fp = fopen("time.txt", "wb+")))
 			{
-				printf("file not opened properly in write mode\n");
+				printf("file not opened properly in wb+ mode\n");
 				break;
 			}
 
-			if (fwrite(&time_structure, TIME_STRUCT_SIZE, NMEB, fp) == EOF)
+			validation = fprintf(fp, "%u : %u", time_info.wHour, time_info.wMinute);
+
+			if (validation < 0)
 			{
-				printf("fwrite is not excecuted successfully\n");
+				printf("fprintf function failed\n");
 				break;
 			}
 
