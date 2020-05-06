@@ -23,6 +23,8 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 INT CALLBACK BrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData);
 BOOL OpenFile(HWND);
+BOOL SaveFile(HWND);
+BOOL NewFile(HWND);
 LPCSTR BrowseForFolder(HWND hwnd, LPCWSTR title);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -145,6 +147,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	LPWSTR str = NULL;
     switch (message)
     {
     case WM_COMMAND:
@@ -157,7 +160,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
 			case ID_FILE_SAVEAS:
-				BrowseForFolder(hWnd, L"Select Folder");
+				if (!SaveFile(hWnd))
+				{
+					OutputDebugString(L"SaveFile function failed\n");
+				}
 				break;
 			case ID_FILE_OPEN:
 				if (!OpenFile(hWnd))
@@ -165,7 +171,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					OutputDebugString(L"OpenFile function failed\n");
 				}
 				break;
+			case ID_FILE_NEW:
+				if (!NewFile(hWnd))
+				{
+					OutputDebugString(L"NewFile function failed\n");
+				}
+				break;
+			case ID_FILE_SAVE:
+				GetWindowText(hWnd, str, 10);
+				if (str == NULL)
+				{
+					MessageBox(NULL, L"NUll", L"exit message", MB_OK);
+				}
+				MessageBox(NULL, str, L"exit message", MB_OK);
+				break;
             case ID_FILE_EXIT:
+				MessageBox(NULL, L"exit message", L"exit message", MB_OK);
                 DestroyWindow(hWnd);
                 break;
             default:
@@ -182,6 +203,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_DESTROY:
+		MessageBox(NULL, L"exit message", L"File Path", MB_OK);
         PostQuitMessage(0);
         break;
     default:
@@ -288,5 +310,79 @@ BOOL OpenFile(HWND hwnd)
 		}
 		CoUninitialize();
 	}
+	return TRUE;
+}
+
+BOOL SaveFile(HWND hwnd)
+{
+	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
+		COINIT_DISABLE_OLE1DDE);
+	if (SUCCEEDED(hr))
+	{
+		IFileSaveDialog *pFileSave;
+
+		hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL,
+			IID_IFileSaveDialog, reinterpret_cast<void**>(&pFileSave));
+
+		if (SUCCEEDED(hr))
+		{
+			hr = pFileSave->Show(NULL);
+
+			if (SUCCEEDED(hr))
+			{
+				IShellItem *pItem;
+				hr = pFileSave->GetResult(&pItem);
+				if (SUCCEEDED(hr))
+				{
+					PWSTR pszFilePath;
+					hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+
+					if (SUCCEEDED(hr))
+					{
+						MessageBox(NULL, pszFilePath, L"File Path", MB_OK);
+						CoTaskMemFree(pszFilePath);
+					}
+					else
+					{
+						return FALSE;
+					}
+					pItem->Release();
+				}
+				else
+				{
+					return FALSE;
+				}
+			}
+			else
+			{
+				return FALSE;
+			}
+			pFileSave->Release();
+		}
+		else
+		{
+			return FALSE;
+		}
+		CoUninitialize();
+	}
+	return TRUE;
+}
+
+BOOL NewFile(HWND hwnd)
+{
+	HWND hwedit = CreateWindowEx(
+		0, L"EDIT",   // predefined class 
+		NULL,         // no window title 
+		WS_CHILD | WS_VISIBLE | WS_VSCROLL |
+		ES_LEFT | ES_MULTILINE,
+		0, 0, 1009, 450,   // set size in WM_SIZE message 
+		hwnd,         // parent window 
+		(HMENU)ID_EDITCHILD,   // edit control ID 
+		(HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE),
+		NULL);
+
+	ShowWindow(hwedit, SW_SHOWNORMAL);
+	//DialogBox(hInst, MAKEINTRESOURCE(ID_TEXT_DIALOG), hWnd, NULL);
+	UpdateWindow(hwedit);
 	return TRUE;
 }
