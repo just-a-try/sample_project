@@ -5,12 +5,19 @@
 #include "NotepadApplication.h"
 #include "Resource.h"
 #include<shlobj_core.h>
-#include<commdlg.h>
+#include <commctrl.h>
+#include <commdlg.h>
 #include <shobjidl.h>
-#define ID_EDITCHILD 100
+
 
 #define MAX_LOADSTRING 100
+#define ID_EDITCHILD 100
 
+HWND g_hwnd;
+HWND g_hEdit;
+WCHAR curfile[MAX_PATH];
+BOOL isopened = FALSE;
+BOOL needsave = FALSE;
 // Global Variables:
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
@@ -21,11 +28,10 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
-INT CALLBACK BrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData);
-BOOL OpenFile(HWND);
-BOOL SaveFile(HWND);
-BOOL NewFile(HWND);
-LPCSTR BrowseForFolder(HWND hwnd, LPCWSTR title);
+BOOL LoadFileToEdit();
+BOOL SaveTextFileFromEdit();
+BOOL GetFileNameForSave();
+BOOL checksave();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -114,24 +120,13 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    {
       return FALSE;
    }
-
-   HWND hwedit  = CreateWindowEx(
-	   0, L"EDIT",   // predefined class 
-	   NULL,         // no window title 
-	   WS_CHILD | WS_VISIBLE | WS_VSCROLL |
-	   ES_LEFT | ES_MULTILINE,
-	   0, 0, 1009, 450,   // set size in WM_SIZE message 
-	   hWnd,         // parent window 
-	   (HMENU)ID_EDITCHILD,   // edit control ID 
-	   (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
-	   NULL);
-
+   g_hwnd = hWnd;
    ShowWindow(hWnd, nCmdShow);
-   ShowWindow(hwedit, nCmdShow);
-   //DialogBox(hInst, MAKEINTRESOURCE(ID_TEXT_DIALOG), hWnd, NULL);
+   if (!SetWindowText(g_hwnd, L"Notepad [Untitled]"))
+   {
+	   OutputDebugString(L"Initial SetWindowText api for window failed\n");
+   }
    UpdateWindow(hWnd);
-   UpdateWindow(hwedit);
-
    return TRUE;
 }
 
@@ -150,44 +145,170 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	LPWSTR str = NULL;
     switch (message)
     {
+	case WM_CREATE:
+	{
+		HWND hEdit;
+		hEdit = CreateWindowEx(
+			WS_EX_CLIENTEDGE,                  
+			L"EDIT",        
+			L"",       
+			WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_AUTOHSCROLL | ES_AUTOVSCROLL, 
+			0,       
+			0,      
+			1010,                
+			465,                 
+			hWnd,        
+			(HMENU)ID_EDITCHILD,
+			GetModuleHandle(NULL),      
+			NULL                
+		);
+		if (hEdit == NULL)
+		{
+			MessageBox(g_hwnd, L"Could not Create Edit control!!", L"Error", MB_OK | MB_ICONERROR);
+			PostQuitMessage(0);
+		}
+		g_hEdit = hEdit;
+
+		if (!SetWindowText(g_hEdit, L""))
+		{
+			OutputDebugString(L"Initial SetWindowText api for editcontrol failed\n");
+		}
+	}
+
+	break;
+	case WM_CLOSE:
+	{
+		if (needsave)
+		{
+			if (isopened)
+			{
+				int res;
+				res = MessageBox(g_hwnd, L"The File has been changed!!!\nDo you want to save it before exit?", L"Save File before Existing!!", MB_YESNO | MB_ICONINFORMATION);
+				if (res == IDYES)
+				{
+					if (!SaveTextFileFromEdit())
+					{
+						OutputDebugString(L"SaveTextFileFromEdit function failed in switch case\n");
+					}
+				}
+			}
+			else
+			{
+				int res;
+				res = MessageBox(g_hwnd, L"The File has been changed!!!\nDo you want to save it before exit?", L"Save File before Existing!!", MB_YESNO | MB_ICONINFORMATION);
+				if (res == IDYES)
+				{
+					if (GetFileNameForSave())
+					{
+						if (!SaveTextFileFromEdit())
+						{
+							OutputDebugString(L"SaveTextFileFromEdit function failed in switch case\n");
+						}
+						needsave = FALSE;
+						return 0;
+					}
+					else
+					{
+						OutputDebugString(L"GetFileNameForSave function failed in switch case\n");
+					}
+				}
+			}
+		}
+		if (MessageBox(g_hwnd, L"Are you sure you want to exit!!!", L"Sure Exit?", MB_YESNO | MB_ICONQUESTION) == IDNO)
+			return 0;
+		PostQuitMessage(0);
+	}
+
+	break;
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
-            // Parse the menu selections:
+			if (HIWORD(wParam) == EN_UPDATE || HIWORD(wParam) == EN_CHANGE)
+			{
+				needsave = TRUE;
+			}
             switch (wmId)
             {
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
 			case ID_FILE_SAVEAS:
-				if (!SaveFile(hWnd))
+			{
+				if (GetFileNameForSave())
 				{
-					OutputDebugString(L"SaveFile function failed\n");
+					if (!SaveTextFileFromEdit())
+					{
+						OutputDebugString(L"SaveTextFileFromEdit function failed in switch case\n");
+					}
 				}
-				break;
-			case ID_FILE_OPEN:
-				if (!OpenFile(hWnd))
+				else
 				{
-					OutputDebugString(L"OpenFile function failed\n");
+					OutputDebugString(L"GetFileNameForSave function failed in switch case\n");
+				}
+			}
+			break;
+			case ID_FILE_OPEN:
+				if (!checksave())
+				{
+					OutputDebugString(L"checksave function failed in switch case\n");
+				}
+				
+				if (!LoadFileToEdit())
+				{
+					OutputDebugString(L"checksave function failed in switch case\n");
 				}
 				break;
 			case ID_FILE_NEW:
-				if (!NewFile(hWnd))
+			{
+				if (!checksave())
 				{
-					OutputDebugString(L"NewFile function failed\n");
+					OutputDebugString(L"checksave function failed in switch case\n");
 				}
-				break;
+
+				isopened = FALSE;
+				needsave = FALSE;
+
+				if (!SetWindowText(g_hEdit, L""))
+				{
+					OutputDebugString(L"Initial SetWindowText api for editcontrol failed\n");
+				}
+				
+				if (!SetWindowText(g_hwnd, L"Notepad [Untitled]"))
+				{
+					OutputDebugString(L"Initial SetWindowText api for editcontrol failed\n");
+				}
+			}
+			break;
 			case ID_FILE_SAVE:
-				GetWindowText(hWnd, str, 10);
-				if (str == NULL)
+			{
+				if (needsave)
 				{
-					MessageBox(NULL, L"NUll", L"exit message", MB_OK);
+					if (isopened)
+					{
+						if (!SaveTextFileFromEdit())
+						{
+							OutputDebugString(L"SaveTextFileFromEdit function failed in switch case\n");
+						}
+					}
+					else if (GetFileNameForSave())
+					{
+						if (!SaveTextFileFromEdit())
+						{
+							OutputDebugString(L"SaveTextFileFromEdit function failed in switch case\n");
+						}
+					}
 				}
-				MessageBox(NULL, str, L"exit message", MB_OK);
-				break;
+				else if (isopened)
+				{
+					if (!SaveTextFileFromEdit())
+					{
+						OutputDebugString(L"SaveTextFileFromEdit function failed in switch case\n");
+					}
+				}
+			}
+			break;
             case ID_FILE_EXIT:
-				MessageBox(NULL, L"exit message", L"exit message", MB_OK);
-                DestroyWindow(hWnd);
+				PostMessage(hWnd, WM_CLOSE, 0, 0);
                 break;
             default:
                 return DefWindowProc(hWnd, message, wParam, lParam);
@@ -203,7 +324,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_DESTROY:
-		MessageBox(NULL, L"exit message", L"File Path", MB_OK);
         PostQuitMessage(0);
         break;
     default:
@@ -232,157 +352,205 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return (INT_PTR)FALSE;
 }
 
-LPCSTR BrowseForFolder(HWND hwnd, LPCWSTR title)
+/* @author   : Subhash
+   @function : to load the content of the opened file to the application's editbox
+   @return   : return true if function succeed or false if failed
+*/
+BOOL LoadFileToEdit()
 {
-	LPCSTR ret = NULL;
-	BROWSEINFO br;
-	ZeroMemory(&br, sizeof(BROWSEINFO));
-	br.lpfn = BrowseCallbackProc;
-	br.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
-	br.hwndOwner = hwnd;
-	br.lpszTitle = title;
-	br.lParam = NULL;
-	LPITEMIDLIST pidl = NULL;
-
-	if ((pidl = SHBrowseForFolder(&br)) != NULL)
+	curfile[0] = '\0';
+	OPENFILENAME ofn;
+	ZeroMemory(&ofn, sizeof(OPENFILENAME));
+	ofn.lStructSize = sizeof(OPENFILENAME);
+	ofn.hwndOwner = g_hwnd;
+	ofn.lpstrFilter = L"Text Files(*.txt)\0*.txt\0All File(*.*)\0*.*\0";
+	ofn.lpstrFile = curfile;
+	ofn.nMaxFile = MAX_PATH;
+	ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+	ofn.lpstrDefExt = L"txt";
+	if (!GetOpenFileName(&ofn))
+		return FALSE;
+	HANDLE hFile;
+	bool bsucces = FALSE;
+	hFile = CreateFile(curfile, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	if (hFile != INVALID_HANDLE_VALUE)
 	{
-		wchar_t buffer[MAX_PATH];
-		if (SHGetPathFromIDList(pidl, buffer)) ret = (LPCSTR)buffer;
-	}
-	return ret;
-}
-
-INT CALLBACK BrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData)
-{
-	if (uMsg == BFFM_INITIALIZED) SendMessage(hwnd, BFFM_SETSELECTION, TRUE, pData);
-	return 0;
-}
-
-BOOL OpenFile(HWND hwnd)
-{
-	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
-		COINIT_DISABLE_OLE1DDE);
-	if (SUCCEEDED(hr))
-	{
-		IFileOpenDialog *pFileOpen;
-
-		hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-			IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
-
-		if (SUCCEEDED(hr))
+		DWORD dwFileSize;
+		dwFileSize = GetFileSize(hFile, NULL);
+		if (dwFileSize != 0xFFFFFFFF)
 		{
-			hr = pFileOpen->Show(NULL);
-
-			if (SUCCEEDED(hr))
+			LPSTR tempftext;
+			tempftext = (char*)GlobalAlloc(GPTR, dwFileSize + 1);
+			if (tempftext != NULL)
 			{
-				IShellItem *pItem;
-				hr = pFileOpen->GetResult(&pItem);
-				if (SUCCEEDED(hr))
+				DWORD dwRead;
+				if (ReadFile(hFile, tempftext, dwFileSize, &dwRead, NULL))
 				{
-					PWSTR pszFilePath;
-					hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+					tempftext[dwFileSize] = 0;
+					if (SetWindowTextA(g_hEdit, tempftext))
+						bsucces = true;
+				}
+				GlobalFree(tempftext);
+			}
+			else
+			{
+				OutputDebugString(L"Memory not alllocated\n");
+			}
+		}
+		CloseHandle(hFile);
+	}
+	if (!bsucces)
+	{
+		MessageBox(g_hwnd, L"The File could not be loaded!!", L"Error", MB_OK | MB_ICONERROR);
+		return FALSE;
+	}
+	
+	if (!SetWindowText(g_hwnd, curfile))
+	{
+		OutputDebugString(L"SetWindowText api for editcontrol during loadfiletoedit function failed\n");
+	}
+	needsave = FALSE;
+	isopened = TRUE;
 
-					if (SUCCEEDED(hr))
-					{
-						MessageBox(NULL, pszFilePath, L"File Path", MB_OK);
-						CoTaskMemFree(pszFilePath);
-					}
+	return TRUE;
+}
+
+/* @author   : Subhash
+   @function : to load the content of the application's editbox to the file to be saved
+   @return   : return true if function succeed or false if failed
+*/
+BOOL SaveTextFileFromEdit()
+{
+	HANDLE hFile;
+	bool bsucces = FALSE;
+	hFile = CreateFile(curfile, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hFile != INVALID_HANDLE_VALUE)
+	{
+		DWORD dwTextLength;
+		dwTextLength = GetWindowTextLength(g_hEdit);
+		if (dwTextLength > 0)
+		{
+			LPSTR pszText;
+			DWORD dwBufferSize = dwTextLength + 1;
+			pszText = (char*)GlobalAlloc(GPTR, dwBufferSize);
+			if (pszText != NULL)
+			{
+				if (GetWindowTextA(g_hEdit, pszText, dwBufferSize))
+				{
+					DWORD dwWritten;
+					if (WriteFile(hFile, pszText, dwTextLength, &dwWritten, NULL))
+						bsucces = TRUE;
 					else
 					{
+						OutputDebugString(L"WriteFile api failed in SaveTextFileFromEdit function\n");
 						return FALSE;
 					}
-					pItem->Release();
 				}
 				else
 				{
+					OutputDebugString(L"GetWindowTextA api failed in SaveTextFileFromEdit function\n");
+					return FALSE;
+				}
+				GlobalFree(pszText);
+			}
+			CloseHandle(hFile);
+		}
+		else if(dwTextLength == 0)
+		{
+			bsucces = TRUE;
+			CloseHandle(hFile);
+		}
+		else
+		{
+			OutputDebugString(L"GetWindowTextLength api failed in SaveTextFileFromEdit function\n");
+			return FALSE;
+		}
+	}
+	else
+	{
+		OutputDebugString(L"Createfile api failed in SaveTextFileFromEdit function\n");
+		return FALSE;
+	}
+
+	if (!bsucces)
+	{
+		MessageBox(g_hwnd, L"The File could not be saved!!!", L"Error", MB_OK | MB_ICONERROR);
+		return FALSE;
+	}
+
+	if (!SetWindowText(g_hwnd, curfile))
+	{
+		OutputDebugString(L"SetWindowText api for editcontrol during SaveTextTofileFromEdit function failed\n");
+	}
+
+	isopened = TRUE;
+	needsave = FALSE;
+
+	return TRUE;
+}
+
+/* @author   : Subhash
+   @function : to get the filename for saving the file which open the SaveFileDialog
+   @return   : return true if function succeed or false if failed
+*/
+BOOL GetFileNameForSave()
+{
+	OPENFILENAME ofn;
+	ZeroMemory(&ofn, sizeof(OPENFILENAME));
+	ofn.lStructSize = sizeof(OPENFILENAME);
+	ofn.hwndOwner = g_hwnd;
+	ofn.lpstrFilter = L"Text Files(*.txt)\0*.txt\0All File(*.*)\0*.*\0";
+	ofn.lpstrFile = curfile;
+	ofn.nMaxFile = MAX_PATH;
+	ofn.Flags = OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
+	ofn.lpstrDefExt = L"txt";
+	if (!GetSaveFileName(&ofn))
+	{
+		OutputDebugString(L"GetSaveFileName function failed\n");
+		return FALSE;
+	}
+	return TRUE;
+}
+
+/* @author   : Subhash
+   @function : to check and save the currrent file in use
+   @return   : return true if function succeed or false if failed
+*/
+BOOL checksave()
+{
+	if (needsave)
+	{
+		int res;
+		res = MessageBox(g_hwnd, L"The File has been changed!!!\nDo you want to save it before continueing?", L"Save File before continueing!!", MB_YESNO | MB_ICONINFORMATION);
+		if (res == IDNO)
+			return TRUE;
+		else
+		{
+			if (!isopened)
+			{
+				if (GetFileNameForSave())
+				{
+					if (!SaveTextFileFromEdit())
+					{
+						OutputDebugString(L"SaveTextFileFromEdit function failed in checksave function\n");
+						return FALSE;
+					}
+				}
+				else
+				{
+					OutputDebugString(L"GetSaveFileName function failed in checksave function\n");
 					return FALSE;
 				}
 			}
 			else
 			{
-				return FALSE;
-			}
-			pFileOpen->Release();
-		}
-		else
-		{
-			return FALSE;
-		}
-		CoUninitialize();
-	}
-	return TRUE;
-}
-
-BOOL SaveFile(HWND hwnd)
-{
-	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
-		COINIT_DISABLE_OLE1DDE);
-	if (SUCCEEDED(hr))
-	{
-		IFileSaveDialog *pFileSave;
-
-		hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL,
-			IID_IFileSaveDialog, reinterpret_cast<void**>(&pFileSave));
-
-		if (SUCCEEDED(hr))
-		{
-			hr = pFileSave->Show(NULL);
-
-			if (SUCCEEDED(hr))
-			{
-				IShellItem *pItem;
-				hr = pFileSave->GetResult(&pItem);
-				if (SUCCEEDED(hr))
+				if (!SaveTextFileFromEdit())
 				{
-					PWSTR pszFilePath;
-					hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
-
-					if (SUCCEEDED(hr))
-					{
-						MessageBox(NULL, pszFilePath, L"File Path", MB_OK);
-						CoTaskMemFree(pszFilePath);
-					}
-					else
-					{
-						return FALSE;
-					}
-					pItem->Release();
-				}
-				else
-				{
+					OutputDebugString(L"SaveTextFileFromEdit function failed in checksave function\n");
 					return FALSE;
 				}
 			}
-			else
-			{
-				return FALSE;
-			}
-			pFileSave->Release();
 		}
-		else
-		{
-			return FALSE;
-		}
-		CoUninitialize();
 	}
-	return TRUE;
-}
-
-BOOL NewFile(HWND hwnd)
-{
-	HWND hwedit = CreateWindowEx(
-		0, L"EDIT",   // predefined class 
-		NULL,         // no window title 
-		WS_CHILD | WS_VISIBLE | WS_VSCROLL |
-		ES_LEFT | ES_MULTILINE,
-		0, 0, 1009, 450,   // set size in WM_SIZE message 
-		hwnd,         // parent window 
-		(HMENU)ID_EDITCHILD,   // edit control ID 
-		(HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE),
-		NULL);
-
-	ShowWindow(hwedit, SW_SHOWNORMAL);
-	//DialogBox(hInst, MAKEINTRESOURCE(ID_TEXT_DIALOG), hWnd, NULL);
-	UpdateWindow(hwedit);
 	return TRUE;
 }
