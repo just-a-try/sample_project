@@ -7,6 +7,7 @@
 #include <commctrl.h>
 #include <commdlg.h>
 #include "shlwapi.h"
+#include <process.h>
 
 #define MAX_LOADSTRING 100
 
@@ -14,14 +15,30 @@
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
-
+HWND g_hdlg;
+BOOL g_to_download = TRUE;
+WCHAR g_curfile[MAX_PATH], g_savefile[MAX_PATH];
+HANDLE g_hthread;
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    Download(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK    Status(HWND, UINT, WPARAM, LPARAM);
 
+void Copyfile(void* data);
+
+DWORD CALLBACK CopyProgressRoutine(
+	LARGE_INTEGER TotalFileSize,
+	LARGE_INTEGER TotalBytesTransferred,
+	LARGE_INTEGER StreamSize,
+	LARGE_INTEGER StreamBytesTransferred,
+	DWORD dwStreamNumber,
+	DWORD dwCallbackReason,
+	HANDLE hSourceFile,
+	HANDLE hDestinationFile,
+	LPVOID lpData);
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
@@ -110,8 +127,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    {
       return FALSE;
    }
-
    DialogBox(hInst, MAKEINTRESOURCE(ID_DOWNLOAD_DIALOG), hWnd, Download);
+   
    DestroyWindow(hWnd);
   /* ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);*/
@@ -139,9 +156,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Parse the menu selections:
             switch (wmId)
             {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
             case IDM_EXIT:
                 DestroyWindow(hWnd);
                 break;
@@ -167,24 +181,80 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-// Message handler for about box.
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
 
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
-    }
-    return (INT_PTR)FALSE;
+// Callback function for handling progress notification.
+DWORD CALLBACK CopyProgressRoutine(
+	LARGE_INTEGER TotalFileSize,
+	LARGE_INTEGER TotalBytesTransferred,
+	LARGE_INTEGER StreamSize,
+	LARGE_INTEGER StreamBytesTransferred,
+	DWORD dwStreamNumber,
+	DWORD dwCallbackReason,
+	HANDLE hSourceFile,
+	HANDLE hDestinationFile,
+	LPVOID lpData)
+{
+	double Percentage = (double(TotalBytesTransferred.QuadPart) /
+		double(TotalFileSize.QuadPart)) * 100;
+	
+	SendMessage(GetDlgItem(g_hdlg, IDC_PROGRESS1), PBM_SETPOS, (WPARAM)Percentage, 0);
+
+	return PROGRESS_CONTINUE;
+}
+
+/* @author   : Subhash
+   @function : to copy the file from source to destionation path selelected in UI
+   @param    : void type data
+   @return   : returns nothing
+*/
+void Copyfile(void* data)
+{
+		if (!SetWindowText(GetDlgItem(g_hdlg, IDC_EDIT1), L"Downloading..."))
+		{
+			OutputDebugString(L" SetWindowText api for copy path failed\n");
+		}
+
+		PWSTR save_filename = StrCatW(g_savefile, PathFindExtensionW(g_curfile));
+		BOOL copyfile = CopyFileEx(g_curfile,
+			save_filename,
+			(LPPROGRESS_ROUTINE)&CopyProgressRoutine,
+			NULL,
+			FALSE,
+			COPY_FILE_ALLOW_DECRYPTED_DESTINATION);
+
+		if (!copyfile)
+		{
+			OutputDebugString(L"CopyFileEx Api failed\n");
+			return;
+		}
+
+		if (!SetWindowText(GetDlgItem(g_hdlg, IDC_EDIT1), L"Download completed"))
+		{
+			OutputDebugString(L" SetWindowText api for copy path failed\n");
+		}
+
+		g_to_download = TRUE;
+	return;
+}
+
+// Message handler for Status box.
+INT_PTR CALLBACK Status(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	UNREFERENCED_PARAMETER(lParam);
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		return (INT_PTR)TRUE;
+
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDCANCEL)
+		{
+			EndDialog(hDlg, LOWORD(wParam));
+			return (INT_PTR)TRUE;
+		}
+		break;
+	}
+	return (INT_PTR)FALSE;
 }
 
 // Message handler for Download dialog box.
@@ -194,65 +264,107 @@ INT_PTR CALLBACK Download(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_INITDIALOG:
+		g_hdlg = hDlg;
+		ShowWindow(GetDlgItem(hDlg, IDC_PROGRESS1), SW_HIDE);
 		return (INT_PTR)TRUE;
 
 	case WM_COMMAND:
-		if (LOWORD(wParam) == ID_DOWNLOAD_BUTTON)
+		HWND hcopy_path = GetDlgItem(hDlg, ID_COPY_PATH);
+		HWND hsave_path = GetDlgItem(hDlg, ID_SAVE_PATH);
+		if (LOWORD(wParam) == ID_BROWSE_COPY_BUTTON)
 		{
-			WCHAR curfile[MAX_PATH];
-			curfile[0] = '\0';
+			if (!SetWindowText(GetDlgItem(hDlg, IDC_EDIT1), L""))
+			{
+				OutputDebugString(L" SetWindowText api for copy path failed\n");
+			}
+
+			ShowWindow(GetDlgItem(hDlg, IDC_PROGRESS1), SW_HIDE);
+
+			g_curfile[0] = NULL;
 			OPENFILENAME ofn;
 			ZeroMemory(&ofn, sizeof(OPENFILENAME));
 			ofn.lStructSize = sizeof(OPENFILENAME);
 			ofn.hwndOwner = hDlg;
-			ofn.lpstrFilter = L"All File(*.*)\0*.*\0";
-			ofn.lpstrFile = curfile;
+			ofn.lpstrFilter = L"All Files(*.*)\0*.*\0";
+			ofn.lpstrFile = g_curfile;
 			ofn.nMaxFile = MAX_PATH;
 			ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
 			ofn.lpstrDefExt = L"";
+
 			if (!GetOpenFileName(&ofn))
-				return FALSE;
-			MessageBox(hDlg, curfile, L"Path", MB_OK);
-
-			HANDLE hFile = CreateFile(curfile, GENERIC_READ, FILE_SHARE_READ,
-				(LPSECURITY_ATTRIBUTES)NULL, OPEN_EXISTING,
-				FILE_ATTRIBUTE_NORMAL, (HANDLE)NULL);
-
-			if (hFile)
 			{
-				MessageBox(hDlg, L"File handle present", L"status", MB_OK);
+				OutputDebugString(L"GetOpenFileName Api failed\n");
+				return (INT_PTR)FALSE;
 			}
 
-			DWORD cb = GetFileSize(hFile, (LPDWORD)NULL);
-			HWND hwndpb = GetDlgItem(hDlg, ID_DOWNLOAD_PROGRESS);
-
-			SendMessage(hwndpb, PBM_SETRANGE, 0, MAKELPARAM(0, cb / 2048));
-
-			SendMessage(hwndpb, PBM_SETSTEP, (WPARAM)1, 0);
-
-			SendMessage(GetDlgItem(hDlg, ID_DOWNLOAD_PROGRESS), PBM_SETSTEP, 50, 0);
-			/*if (PathFileExists(L"C:\\Users\\ELCOT\\Downloads\\movie.mkv"))
+			if (!SetWindowText(hcopy_path, g_curfile))
 			{
-				MessageBox(hDlg, L"File present", L"status", MB_OK);
+				OutputDebugString(L" SetWindowText api for copy path failed\n");
+			}
+		}
+		else if (LOWORD(wParam) == ID_BROWSE_SAVE_BUTTON)
+		{
+			if (!SetWindowText(GetDlgItem(hDlg, IDC_EDIT1), L""))
+			{
+				OutputDebugString(L" SetWindowText api for copy path failed\n");
+			}
+
+			ShowWindow(GetDlgItem(hDlg, IDC_PROGRESS1), SW_HIDE);
+
+			OPENFILENAME sfn;
+			ZeroMemory(&sfn, sizeof(OPENFILENAME));
+			sfn.lStructSize = sizeof(OPENFILENAME);
+			g_savefile[0] = NULL;
+			sfn.hwndOwner = hDlg;
+			sfn.lpstrFilter = L"All Files(*.*)\0*.*\0";
+			sfn.lpstrFile = g_savefile;
+			sfn.nMaxFile = MAX_PATH;
+			sfn.Flags = OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
+			sfn.lpstrDefExt = L"";
+
+			if (!GetSaveFileName(&sfn))
+			{
+				OutputDebugString(L"GetSaveFileName function failed\n");
+				return FALSE;
+			}
+
+			if (!SetWindowText(hsave_path, g_savefile))
+			{
+				OutputDebugString(L" SetWindowText api for copy path failed\n");
+			}
+		}
+		else if (LOWORD(wParam) == ID_DOWNLOAD_BUTTON)
+		{
+			if (g_to_download)
+			{
+				int copy_path_length = GetWindowTextLength(hcopy_path);
+				int save_path_length = GetWindowTextLength(hsave_path);
+
+				if (copy_path_length == 0 || save_path_length == 0)
+				{
+					MessageBox(hDlg, L"Download needs both path", L"Error", MB_OK);
+				}
+				else
+				{
+					int max_range = 100;
+					g_to_download = FALSE;
+					SendMessage(GetDlgItem(hDlg, IDC_PROGRESS1), PBM_SETRANGE, 0, MAKELPARAM(0, max_range));
+					ShowWindow(GetDlgItem(hDlg, IDC_PROGRESS1), SW_NORMAL);
+					HANDLE g_hthread = (HANDLE)_beginthread(&Copyfile, 0, 0);
+
+					if (!g_hthread)
+					{
+						OutputDebugString(L" _beginthread returned NULL\n");
+					}
+
+				}
 			}
 			else
 			{
-				MessageBox(hDlg, L"file not present", L"status", MB_OK);
-			}*/
-
-			if (!CopyFile(curfile, L"C:\\Users\\ELCOT\\Downloads\\movie.mkv", TRUE))
-			{
-				MessageBox(hDlg, L"Failed", L"status", MB_OK);
+				DialogBox(hInst, MAKEINTRESOURCE(ID_STATUS_DIALOG), hDlg, Status);
 			}
-
-			//SendMessage(GetDlgItem(hDlg, ID_DOWNLOAD_PROGRESS), PBM_SETSTEP, 10, 0);
-			return (INT_PTR)TRUE;
 		}
-		else if(LOWORD(wParam) == ID_CANCEL_BUTTON)
-		{
-			return (INT_PTR)TRUE;
-		}
-		else if(LOWORD(wParam) == IDCANCEL)
+		else if (LOWORD(wParam) == IDCANCEL)
 		{
 			EndDialog(hDlg, LOWORD(wParam));
 			return (INT_PTR)TRUE;
@@ -261,3 +373,4 @@ INT_PTR CALLBACK Download(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	return (INT_PTR)FALSE;
 }
+

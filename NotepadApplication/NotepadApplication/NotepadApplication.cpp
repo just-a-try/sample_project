@@ -4,7 +4,6 @@
 #include "framework.h"
 #include "NotepadApplication.h"
 #include "Resource.h"
-#include<shlobj_core.h>
 #include <commctrl.h>
 #include <commdlg.h>
 #include <shobjidl.h>
@@ -16,8 +15,8 @@
 HWND g_hwnd;
 HWND g_hEdit;
 WCHAR curfile[MAX_PATH];
-BOOL isopened = FALSE;
-BOOL needsave = FALSE;
+BOOL g_is_file_opened = FALSE;
+BOOL g_need_to_save_file = FALSE;
 // Global Variables:
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
@@ -31,7 +30,7 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 BOOL LoadFileToEdit();
 BOOL SaveTextFileFromEdit();
 BOOL GetFileNameForSave();
-BOOL checksave();
+BOOL check_for_filesave();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -143,6 +142,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	LPWSTR str = NULL;
+	int Width, Height;
     switch (message)
     {
 	case WM_CREATE:
@@ -167,6 +167,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			MessageBox(g_hwnd, L"Could not Create Edit control!!", L"Error", MB_OK | MB_ICONERROR);
 			PostQuitMessage(0);
 		}
+
 		g_hEdit = hEdit;
 
 		if (!SetWindowText(g_hEdit, L""))
@@ -176,14 +177,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 
 	break;
+	case WM_SIZE:
+	{
+		Width = LOWORD(lParam); 
+		Height = HIWORD(lParam); 
+
+		if (!MoveWindow(g_hEdit, 0, 0, Width, Height, 1))
+		{
+			OutputDebugString(L" MoveWindow api for editcontrol failed\n");
+		}
+	}
+		break;
 	case WM_CLOSE:
 	{
-		if (needsave)
+		if (g_need_to_save_file)
 		{
-			if (isopened)
+			if (g_is_file_opened)
 			{
 				int res;
-				res = MessageBox(g_hwnd, L"The File has been changed!!!\nDo you want to save it before exit?", L"Save File before Existing!!", MB_YESNO | MB_ICONINFORMATION);
+				res = MessageBox(g_hwnd, L"The File has been changed!!!\nDo you want to save it before exit?", L"Save File before Exit!!", MB_YESNO | MB_ICONINFORMATION);
 				if (res == IDYES)
 				{
 					if (!SaveTextFileFromEdit())
@@ -195,7 +207,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			else
 			{
 				int res;
-				res = MessageBox(g_hwnd, L"The File has been changed!!!\nDo you want to save it before exit?", L"Save File before Existing!!", MB_YESNO | MB_ICONINFORMATION);
+				res = MessageBox(g_hwnd, L"The File has been changed!!!\nDo you want to save it before exit?", L"Save File before Exit!!", MB_YESNO | MB_ICONINFORMATION);
 				if (res == IDYES)
 				{
 					if (GetFileNameForSave())
@@ -204,7 +216,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						{
 							OutputDebugString(L"SaveTextFileFromEdit function failed in switch case\n");
 						}
-						needsave = FALSE;
+						g_need_to_save_file = FALSE;
 						return 0;
 					}
 					else
@@ -223,10 +235,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
+
 			if (HIWORD(wParam) == EN_UPDATE || HIWORD(wParam) == EN_CHANGE)
 			{
-				needsave = TRUE;
+				g_need_to_save_file = TRUE;
 			}
+
             switch (wmId)
             {
             case IDM_ABOUT:
@@ -248,25 +262,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 			break;
 			case ID_FILE_OPEN:
-				if (!checksave())
+				if (!check_for_filesave())
 				{
-					OutputDebugString(L"checksave function failed in switch case\n");
+					OutputDebugString(L"check_for_filesave function failed in switch case\n");
 				}
 				
 				if (!LoadFileToEdit())
 				{
-					OutputDebugString(L"checksave function failed in switch case\n");
+					OutputDebugString(L"check_for_filesave function failed in switch case\n");
 				}
 				break;
 			case ID_FILE_NEW:
 			{
-				if (!checksave())
+				if (!check_for_filesave())
 				{
-					OutputDebugString(L"checksave function failed in switch case\n");
+					OutputDebugString(L"check_for_filesave function failed in switch case\n");
 				}
 
-				isopened = FALSE;
-				needsave = FALSE;
+				g_is_file_opened = FALSE;
+				g_need_to_save_file = FALSE;
 
 				if (!SetWindowText(g_hEdit, L""))
 				{
@@ -281,24 +295,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 			case ID_FILE_SAVE:
 			{
-				if (needsave)
+				if (g_is_file_opened)
 				{
-					if (isopened)
+					if (!SaveTextFileFromEdit())
 					{
-						if (!SaveTextFileFromEdit())
-						{
-							OutputDebugString(L"SaveTextFileFromEdit function failed in switch case\n");
-						}
-					}
-					else if (GetFileNameForSave())
-					{
-						if (!SaveTextFileFromEdit())
-						{
-							OutputDebugString(L"SaveTextFileFromEdit function failed in switch case\n");
-						}
+						OutputDebugString(L"SaveTextFileFromEdit function failed in switch case\n");
 					}
 				}
-				else if (isopened)
+				else if (GetFileNameForSave())
 				{
 					if (!SaveTextFileFromEdit())
 					{
@@ -409,8 +413,8 @@ BOOL LoadFileToEdit()
 	{
 		OutputDebugString(L"SetWindowText api for editcontrol during loadfiletoedit function failed\n");
 	}
-	needsave = FALSE;
-	isopened = TRUE;
+	g_need_to_save_file = FALSE;
+	g_is_file_opened = TRUE;
 
 	return TRUE;
 }
@@ -483,8 +487,8 @@ BOOL SaveTextFileFromEdit()
 		OutputDebugString(L"SetWindowText api for editcontrol during SaveTextTofileFromEdit function failed\n");
 	}
 
-	isopened = TRUE;
-	needsave = FALSE;
+	g_is_file_opened = TRUE;
+	g_need_to_save_file = FALSE;
 
 	return TRUE;
 }
@@ -516,9 +520,9 @@ BOOL GetFileNameForSave()
    @function : to check and save the currrent file in use
    @return   : return true if function succeed or false if failed
 */
-BOOL checksave()
+BOOL check_for_filesave()
 {
-	if (needsave)
+	if (g_need_to_save_file)
 	{
 		int res;
 		res = MessageBox(g_hwnd, L"The File has been changed!!!\nDo you want to save it before continueing?", L"Save File before continueing!!", MB_YESNO | MB_ICONINFORMATION);
@@ -526,19 +530,19 @@ BOOL checksave()
 			return TRUE;
 		else
 		{
-			if (!isopened)
+			if (!g_is_file_opened)
 			{
 				if (GetFileNameForSave())
 				{
 					if (!SaveTextFileFromEdit())
 					{
-						OutputDebugString(L"SaveTextFileFromEdit function failed in checksave function\n");
+						OutputDebugString(L"SaveTextFileFromEdit function failed in check_for_filesave function\n");
 						return FALSE;
 					}
 				}
 				else
 				{
-					OutputDebugString(L"GetSaveFileName function failed in checksave function\n");
+					OutputDebugString(L"GetSaveFileName function failed in check_for_filesave function\n");
 					return FALSE;
 				}
 			}
@@ -546,7 +550,7 @@ BOOL checksave()
 			{
 				if (!SaveTextFileFromEdit())
 				{
-					OutputDebugString(L"SaveTextFileFromEdit function failed in checksave function\n");
+					OutputDebugString(L"SaveTextFileFromEdit function failed in check_for_filesave function\n");
 					return FALSE;
 				}
 			}
