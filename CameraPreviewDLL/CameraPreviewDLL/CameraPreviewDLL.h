@@ -20,11 +20,11 @@
 #include <stdio.h>
 #include <commdlg.h>
 #include <strsafe.h>
-
-#include "amcap.h"
+#include <dshowutil.h>
+#include "SampleCGB.h"
 #include "status.h"
 #include "crossbar.h"
-#include "SampleCGB.h"
+#include "wxlist.h"
 
 // This class is exported from the dll
 class CAMERAPREVIEWDLL_API CCameraPreviewDLL {
@@ -33,73 +33,20 @@ public:
 	// TODO: add your methods here.
 };
 
-struct _capstuff
-{
-	WCHAR wszCaptureFile[_MAX_PATH];
-	WORD wCapFileSize;  // size in Meg
-	ISampleCaptureGraphBuilder *pBuilder;
-	IVideoWindow *pVW;
-	IMediaEventEx *pME;
-	IAMDroppedFrames *pDF;
-	IAMVideoCompression *pVC;
-	IAMVfwCaptureDialogs *pDlg;
-	IAMStreamConfig *pASC;      // for audio cap
-	IAMStreamConfig *pVSC;      // for video cap
-	IBaseFilter *pRender;
-	IBaseFilter *pVCap, *pACap;
-	IGraphBuilder *pFg;
-	IFileSinkFilter *pSink;
-	IConfigAviMux *pConfigAviMux;
-	int  iMasterStream;
-	BOOL fCaptureGraphBuilt;
-	BOOL fPreviewGraphBuilt;
-	BOOL fCapturing;
-	BOOL fPreviewing;
-	BOOL fMPEG2;
-	BOOL fCapAudio;
-	BOOL fCapCC;
-	BOOL fCCAvail;
-	BOOL fCapAudioIsRelevant;
-	bool fDeviceMenuPopulated;
-	IMoniker *rgpmVideoMenu[10];
-	IMoniker *rgpmAudioMenu[10];
-	IMoniker *pmVideo;
-	IMoniker *pmAudio;
-	double FrameRate;
-	BOOL fWantPreview;
-	long lCapStartTime;
-	long lCapStopTime;
-	WCHAR wachFriendlyName[120];
-	BOOL fUseTimeLimit;
-	BOOL fUseFrameRate;
-	DWORD dwTimeLimit;
-	int iFormatDialogPos;
-	int iSourceDialogPos;
-	int iDisplayDialogPos;
-	int iVCapDialogPos;
-	int iVCrossbarDialogPos;
-	int iTVTunerDialogPos;
-	int iACapDialogPos;
-	int iACrossbarDialogPos;
-	int iTVAudioDialogPos;
-	int iVCapCapturePinDialogPos;
-	int iVCapPreviewPinDialogPos;
-	int iACapCapturePinDialogPos;
-	long lDroppedBase;
-	long lNotBase;
-	BOOL fPreviewFaked;
-	CCrossbar *pCrossbar;
-	int iVideoInputMenuPos;
-	LONG NumberOfVideoInputs;
-	HMENU hMenuPopup;
-	int iNumVCapDevices;
-} gcap;
 
 extern CAMERAPREVIEWDLL_API int nCameraPreviewDLL;
 
 CAMERAPREVIEWDLL_API int fnCameraPreviewDLL(void);
-CAMERAPREVIEWDLL_API BOOL StartPreview();
-CAMERAPREVIEWDLL_API BOOL StopPreview();
+ BOOL StartPreview();
+ BOOL StopPreview();
+ BOOL BuildPreviewGraph();
+ void FreeCapFilters();
+ void TearDownGraph();
+ void NukeDownstream(IBaseFilter *pf);
+ void ResizeWindow(int w, int h);
+ BOOL MakeBuilder();
+ BOOL MakeGraph();
+ CAMERAPREVIEWDLL_API BOOL InitCapFilters();
 CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd);
 CAMERAPREVIEWDLL_API HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum);
 CAMERAPREVIEWDLL_API BOOL DisplayDeviceInformation(IEnumMoniker *pEnum, HWND hwnd);

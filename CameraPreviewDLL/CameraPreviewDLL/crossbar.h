@@ -33,7 +33,7 @@ public:
     ~CRouting () {};
 };
 
-typedef CGenericList <CRouting> CRoutingList;
+typedef CGenericList<CRouting> CRoutingList;
 
 
 

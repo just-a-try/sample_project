@@ -8,7 +8,8 @@
 
 
 #include <ks.h>
-
+#include <SmartPtr.h>
+#include <WXDebug.h>
 
 #ifndef KSCATEGORY_ENCODER
 #define STATIC_KSCATEGORY_ENCODER\
