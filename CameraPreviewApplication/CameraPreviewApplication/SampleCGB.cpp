@@ -1461,7 +1461,6 @@ ISampleCaptureGraphBuilder::CreateAudioPin(
 
     SmartPtr<IPin> pAudioOutPin;
     HRESULT hr = pIMpeg2Demux->CreateOutputPin(&amTypeAudio, L"MpegAudio", &pAudioOutPin);
-
     if( FAILED( hr ) )
     {
         return hr;

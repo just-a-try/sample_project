@@ -27,6 +27,9 @@
     <ClInclude Include="CameraPreviewApplication.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CameraPreviewDLL.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CameraPreviewApplication.cpp">
@@ -45,5 +48,8 @@
     <Image Include="CameraPreviewApplication.ico">
       <Filter>Resource Files</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\CameraPreviewDLL\CameraPreviewDLL.sln" />
   </ItemGroup>
 </Project>

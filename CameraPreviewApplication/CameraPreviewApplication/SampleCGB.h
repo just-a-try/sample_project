@@ -66,6 +66,7 @@ public:
         pMediaControl_.Release();
         pAudioPin_.Release();
         pVideoPin_.Release();
+
     }
 
 public:

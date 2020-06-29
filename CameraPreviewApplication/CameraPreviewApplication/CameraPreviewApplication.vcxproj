@@ -23,7 +23,7 @@
     <ProjectGuid>{DB71DBF9-9903-46A7-BC75-CD7E9F9038BB}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>CameraPreviewApplication</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -91,12 +91,25 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Program Files\Microsoft SDKs\Windows\v6.1\Samples\Multimedia\DirectShow\BaseClasses;C:\Program Files\Microsoft SDKs\Windows\v6.1\Samples\Multimedia\DirectShow\Common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>CAMERAPREVIEWDLL.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Program Files\Microsoft SDKs\Windows\v6.1\Samples\Multimedia\DirectShow\BaseClasses\Debug;E:\windows programs\CameraPreviewApplication\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>strmbasd.lib;
+winmm.lib
+;Msacm32.lib
+;setupapi.lib
+;Comctl32.lib;
+Version.lib
+;shlwapi.lib;
+mf.lib;
+mfuuid.lib;
+wmcodecdspuuid.lib;
+wbemuuid.lib
+;Wtsapi32.lib;
+Psapi.lib;Strmiids.lib;CAMERAPREVIEWDLL.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -156,6 +169,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CameraPreviewApplication.h" />
+    <ClInclude Include="CameraPreviewDLL.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
@@ -169,6 +183,9 @@
   <ItemGroup>
     <Image Include="CameraPreviewApplication.ico" />
     <Image Include="small.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\CameraPreviewDLL\CameraPreviewDLL.sln" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

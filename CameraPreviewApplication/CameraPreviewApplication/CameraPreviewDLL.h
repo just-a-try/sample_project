@@ -10,6 +10,22 @@
 #define CAMERAPREVIEWDLL_API __declspec(dllimport)
 #endif
 
+#include <Windows.h>
+#include <dshow.h>
+#include <dbt.h>
+#include <mmreg.h>
+#include <msacm.h>
+#include <fcntl.h>
+#include <io.h>
+#include <stdio.h>
+#include <commdlg.h>
+#include <strsafe.h>
+#include <dshowutil.h>
+#include "SampleCGB.h"
+#include "status.h"
+//#include "crossbar.h"
+//#include "wxlist.h"
+
 // This class is exported from the dll
 class CAMERAPREVIEWDLL_API CCameraPreviewDLL {
 public:
@@ -17,10 +33,19 @@ public:
 	// TODO: add your methods here.
 };
 
+
 extern CAMERAPREVIEWDLL_API int nCameraPreviewDLL;
 
 CAMERAPREVIEWDLL_API int fnCameraPreviewDLL(void);
-
+CAMERAPREVIEWDLL_API BOOL StartPreview();
+CAMERAPREVIEWDLL_API BOOL StopPreview();
+ BOOL BuildPreviewGraph(HWND hwnd);
+ void FreeCapFilters();
+ void TearDownGraph();
+ void NukeDownstream(IBaseFilter *pf);
+ BOOL MakeBuilder();
+ BOOL MakeGraph();
+ CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd);
 CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd);
-CAMERAPREVIEWDLL_API HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum);
-CAMERAPREVIEWDLL_API void DisplayDeviceInformation(IEnumMoniker *pEnum, HWND hwnd);
+ HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum);
+ BOOL DisplayDeviceInformation(IEnumMoniker *pEnum, HWND hwnd);

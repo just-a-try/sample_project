@@ -23,8 +23,8 @@
 #include <dshowutil.h>
 #include "SampleCGB.h"
 #include "status.h"
-#include "crossbar.h"
-#include "wxlist.h"
+//#include "crossbar.h"
+//#include "wxlist.h"
 
 // This class is exported from the dll
 class CAMERAPREVIEWDLL_API CCameraPreviewDLL {
@@ -37,16 +37,15 @@ public:
 extern CAMERAPREVIEWDLL_API int nCameraPreviewDLL;
 
 CAMERAPREVIEWDLL_API int fnCameraPreviewDLL(void);
- BOOL StartPreview();
- BOOL StopPreview();
- BOOL BuildPreviewGraph();
+CAMERAPREVIEWDLL_API BOOL StartPreview();
+CAMERAPREVIEWDLL_API BOOL StopPreview();
+ BOOL BuildPreviewGraph(HWND hwnd);
  void FreeCapFilters();
  void TearDownGraph();
  void NukeDownstream(IBaseFilter *pf);
- void ResizeWindow(int w, int h);
  BOOL MakeBuilder();
  BOOL MakeGraph();
- CAMERAPREVIEWDLL_API BOOL InitCapFilters();
+ CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd);
 CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd);
-CAMERAPREVIEWDLL_API HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum);
-CAMERAPREVIEWDLL_API BOOL DisplayDeviceInformation(IEnumMoniker *pEnum, HWND hwnd);
+ HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum);
+ BOOL DisplayDeviceInformation(IEnumMoniker *pEnum, HWND hwnd);

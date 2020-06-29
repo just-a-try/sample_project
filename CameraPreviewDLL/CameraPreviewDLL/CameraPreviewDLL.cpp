@@ -12,27 +12,11 @@
 #pragma comment(lib, "strmiids")
 #include "CameraPreviewDLL.h"
 
-
-// This is an example of an exported variable
-CAMERAPREVIEWDLL_API int nCameraPreviewDLL=0;
-
-// This is an example of an exported function.
-CAMERAPREVIEWDLL_API int fnCameraPreviewDLL(void)
-{
-    return 0;
-}
-
-// This is the constructor of a class that has been exported.
-CCameraPreviewDLL::CCameraPreviewDLL()
-{
-    return;
-}
-
-#define ABS(x) (((x) > 0) ? (x) : -(x))
-
+IMoniker *pMoniker = NULL;
 WCHAR wszCaptureFile[_MAX_PATH];
 WORD wCapFileSize;  // size in Meg
-ISampleCaptureGraphBuilder *pBuilder;
+//ISampleCaptureGraphBuilder *pBuilder;
+ICaptureGraphBuilder2 *pBuilder;
 IVideoWindow *pVW;
 IMediaEventEx *pME;
 IAMDroppedFrames *pDF;
@@ -58,7 +42,6 @@ BOOL fCapAudioIsRelevant;
 bool fDeviceMenuPopulated;
 IMoniker *rgpmVideoMenu[10];
 IMoniker *rgpmAudioMenu[10];
-IMoniker *pmVideo;
 IMoniker *pmAudio;
 double FrameRate;
 BOOL fWantPreview;
@@ -87,57 +70,155 @@ int iVideoInputMenuPos;
 LONG NumberOfVideoInputs;
 HMENU hMenuPopup;
 int iNumVCapDevices;
-CCrossbar *pCrossbar;
+//CCrossbar *pCrossbar;
 HINSTANCE ghInstApp = 0;
 HACCEL ghAccel = 0;
 HFONT  ghfontApp = 0;
 TEXTMETRIC gtm = { 0 };
 TCHAR gszAppName[] = TEXT("AMCAP");
-HWND ghwndApp = 0, ghwndStatus = 0;
+HWND ghwndApp = 0, ghwndStatus = 0, hWnd;
 HDEVNOTIFY ghDevNotify = 0;
 //PUnregisterDeviceNotification gpUnregisterDeviceNotification = 0;
 //PRegisterDeviceNotification gpRegisterDeviceNotification = 0;
 DWORD g_dwGraphRegister = 0;
 
+// This is an example of an exported variable
+CAMERAPREVIEWDLL_API int nCameraPreviewDLL=0;
 
-// make sure the preview window inside our window is as big as the
-// dimensions of captured video, or some capture cards won't show a preview.
-// (Also, it helps people tell what size video they're capturing)
-// We will resize our app's window big enough so that once the status bar
-// is positioned at the bottom there will be enough room for the preview
-// window to be w x h
-//
-int gnRecurse = 0;
-
-
-void ResizeWindow(int w, int h)
+// This is an example of an exported function.
+CAMERAPREVIEWDLL_API int fnCameraPreviewDLL(void)
 {
-	RECT rcW, rcC;
-	int xExtra, yExtra;
-	int cyBorder = GetSystemMetrics(SM_CYBORDER);
-
-	gnRecurse++;
-
-	GetWindowRect(ghwndApp, &rcW);
-	GetClientRect(ghwndApp, &rcC);
-	xExtra = rcW.right - rcW.left - rcC.right;
-	yExtra = rcW.bottom - rcW.top - rcC.bottom + cyBorder + statusGetHeight();
-
-	rcC.right = w;
-	rcC.bottom = h;
-	SetWindowPos(ghwndApp, NULL, 0, 0, rcC.right + xExtra,
-		rcC.bottom + yExtra, SWP_NOZORDER | SWP_NOMOVE);
-
-	// we may need to recurse once.  But more than that means the window cannot
-	// be made the size we want, trying will just stack fault.
-	//
-	if (gnRecurse == 1 && ((rcC.right + xExtra != rcW.right - rcW.left && w > GetSystemMetrics(SM_CXMIN)) ||
-		(rcC.bottom + yExtra != rcW.bottom - rcW.top)))
-		ResizeWindow(w, h);
-
-	gnRecurse--;
+    return 0;
 }
 
+// This is the constructor of a class that has been exported.
+CCameraPreviewDLL::CCameraPreviewDLL()
+{
+    return;
+}
+
+#define ABS(x) (((x) > 0) ? (x) : -(x))
+
+
+
+ HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum)
+{
+	// Create the System Device Enumerator.
+	ICreateDevEnum *pDevEnum;
+	HRESULT hr = CoCreateInstance(CLSID_SystemDeviceEnum, NULL,
+		CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pDevEnum));
+
+	if (SUCCEEDED(hr))
+	{
+		// Create an enumerator for the category.
+		hr = pDevEnum->CreateClassEnumerator(category, ppEnum, 0);
+		if (hr == S_FALSE)
+		{
+			hr = VFW_E_NOT_FOUND;  // The category is empty. Treat as an error.
+		}
+		pDevEnum->Release();
+	}
+	return hr;
+}
+
+ BOOL DisplayDeviceInformation(IEnumMoniker *pEnum, HWND hwnd)
+{
+	IMoniker *pMoniker = NULL;
+	HMENU hmenu = GetMenu(hwnd);
+	HMENU hSubMenu = GetSubMenu(hmenu, 1);
+	BOOL ret = TRUE;
+	int menu_count = GetMenuItemCount(hSubMenu);
+
+	if (menu_count < 0)
+	{
+		OutputDebugString(L"GetMenuItemCount API failed");
+		return FALSE;
+	}
+
+	if (menu_count > 1)
+	{
+		for (int flag1 = 0; flag1 < menu_count - 1; flag1++)
+		{
+			if (!DeleteMenu(hSubMenu, 1, MF_BYPOSITION))
+			{
+				OutputDebugString(L"DeleteMenu API failed");
+				return FALSE;
+			}
+		}
+	}
+
+	while (pEnum->Next(1, &pMoniker, NULL) == S_OK)
+	{
+		IPropertyBag *pPropBag;
+		HRESULT hr = pMoniker->BindToStorage(0, 0, IID_PPV_ARGS(&pPropBag));
+
+		if (FAILED(hr))
+		{
+			pMoniker->Release();
+			continue;
+		}
+
+		VARIANT var;
+		VariantInit(&var);
+
+		hr = pPropBag->Read(L"Description", &var, 0);
+		if (FAILED(hr))
+		{
+			hr = pPropBag->Read(L"FriendlyName", &var, 0);
+		}
+		if (SUCCEEDED(hr))
+		{
+			VariantClear(&var);
+		}
+
+		if (!AppendMenu(hSubMenu, MF_STRING, TRUE, var.bstrVal))
+		{
+			OutputDebugString(L"AppendMenu function failed");
+			ret = FALSE;
+		}
+
+		pPropBag->Release();
+		pMoniker->Release();
+	}
+	return ret;
+}
+
+CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd)
+{
+	HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	BOOL ret = TRUE;
+	hWnd = hwnd;
+	if (SUCCEEDED(hr))
+	{
+		IEnumMoniker *pEnum;
+
+		hr = EnumerateDevices(CLSID_VideoInputDeviceCategory, &pEnum);
+
+		if (SUCCEEDED(hr))
+		{
+			if (!DisplayDeviceInformation(pEnum, hwnd))
+			{
+				OutputDebugString(L"DisplayDeviceInformation failed\n");
+				ret = FALSE;
+			}
+			pEnum->Release();
+			CoUninitialize();
+		}
+		else
+		{
+			OutputDebugString(L"EnumerateDevices failed\n");
+			CoUninitialize();
+			ret = FALSE;
+		}
+	}
+	else
+	{
+		OutputDebugString(L"CoInitializeEx failed\n");
+		ret = FALSE;
+	}
+
+	return ret;
+}
 
 // Tear down everything downstream of a given filter
 void NukeDownstream(IBaseFilter *pf)
@@ -206,11 +287,11 @@ void TearDownGraph()
 		NukeDownstream(pVCap);
 	if (pACap)
 		NukeDownstream(pACap);
-	if (pVCap)
-		pBuilder->ReleaseFilters();
+	/*if (pVCap)
+		pBuilder->ReleaseFilters();*/
 
-	// potential debug output - what the graph looks like
-	// if (pFg) DumpGraph(pFg, 1);
+		// potential debug output - what the graph looks like
+		// if (pFg) DumpGraph(pFg, 1);
 
 #ifdef REGISTER_FILTERGRAPH
 	// Remove filter graph from the running object table
@@ -228,9 +309,9 @@ void TearDownGraph()
 
 
 
-BOOL BuildPreviewGraph()
+BOOL BuildPreviewGraph(HWND hwnd)
 {
-	int cy, cyBorder;
+	int  cy, cyBorder;
 	HRESULT hr;
 	AM_MEDIA_TYPE *pmt;
 
@@ -267,16 +348,17 @@ BOOL BuildPreviewGraph()
 	{
 		hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
 			&MEDIATYPE_Stream, pVCap, NULL, NULL);
+
 		if (FAILED(hr))
 		{
 			//OutputDebugString(TEXT("Cannot build MPEG2 preview graph!"));
 		}
-
 	}
 	else
 	{
 		hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
 			&MEDIATYPE_Interleaved, pVCap, NULL, NULL);
+
 		if (hr == VFW_S_NOPREVIEWPIN)
 		{
 			// preview was faked up for us using the (only) capture pin
@@ -287,6 +369,7 @@ BOOL BuildPreviewGraph()
 			// maybe it's DV?
 			hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
 				&MEDIATYPE_Video, pVCap, NULL, NULL);
+
 			if (hr == VFW_S_NOPREVIEWPIN)
 			{
 				// preview was faked up for us using the (only) capture pin
@@ -315,7 +398,7 @@ BOOL BuildPreviewGraph()
 					pVCap, NULL, NULL);
 				if (hr != NOERROR)
 				{
-					//OutputDebugString(TEXT("Cannot render closed captioning"));
+					OutputDebugString(TEXT("Cannot render closed captioning"));
 				}
 			}
 		}
@@ -360,25 +443,27 @@ BOOL BuildPreviewGraph()
 
 					hr1 = pBV->get_VideoHeight(&lHeight);
 					hr2 = pBV->get_VideoWidth(&lWidth);
-					if (SUCCEEDED(hr1) && SUCCEEDED(hr2))
-					{
-						ResizeWindow(lWidth, abs(lHeight));
-					}
+					
 				}
 			}
 		}
 
 		RECT rc;
-		pVW->put_Owner((OAHWND)ghwndApp);    // We own the window now
+		TEXTMETRIC tm;
+		HDC hdc = GetDC(NULL);
+		GetTextMetrics(hdc, &tm);
+
+		int gStatusStdHeight = tm.tmHeight * 3 / 2;
+		pVW->put_Owner((OAHWND)hwnd);    // We own the window now
 		pVW->put_WindowStyle(WS_CHILD);    // you are now a child
 
 		// give the preview window all our space but where the status bar is
 		GetClientRect(ghwndApp, &rc);
 		cyBorder = GetSystemMetrics(SM_CYBORDER);
-		cy = statusGetHeight() + cyBorder;
+		cy = gStatusStdHeight + cyBorder;
 		rc.bottom -= cy;
 
-		pVW->SetWindowPosition(0, 0, rc.right, rc.bottom); // be this big
+		pVW->SetWindowPosition(0, 0, CW_USEDEFAULT, CW_USEDEFAULT); // be this big
 		pVW->put_Visible(OATRUE);
 	}
 
@@ -402,7 +487,7 @@ BOOL BuildPreviewGraph()
 				hr = pVSC->SetFormat(pmt);
 				if (hr != NOERROR)
 					OutputDebugString(L"%x: Cannot set frame rate for preview");
-					//OutputDebugString(TEXT("%x: Cannot set frame rate for preview"), hr);
+				//OutputDebugString(TEXT("%x: Cannot set frame rate for preview"), hr);
 			}
 			DeleteMediaType(pmt);
 		}
@@ -426,7 +511,7 @@ BOOL BuildPreviewGraph()
 	hr = AddGraphToRot(pFg, &g_dwGraphRegister);
 	if (FAILED(hr))
 	{
-		OutputDebugString(TEXT("Failed to register filter graph with ROT!  hr=0x%x"), hr);
+		OutputDebugString(TEXT("Failed to register filter graph with ROT!  hr=0x%x"));
 		g_dwGraphRegister = 0;
 	}
 #endif
@@ -438,7 +523,7 @@ BOOL BuildPreviewGraph()
 
 // Start previewing
 //
- BOOL StartPreview()
+CAMERAPREVIEWDLL_API BOOL StartPreview()
 {
 	// way ahead of you
 	if (fPreviewing)
@@ -472,7 +557,7 @@ BOOL BuildPreviewGraph()
 
 // stop the preview graph
 //
- BOOL StopPreview()
+CAMERAPREVIEWDLL_API BOOL StopPreview()
 {
 	// way ahead of you
 	if (!fPreviewing)
@@ -502,138 +587,30 @@ BOOL BuildPreviewGraph()
 	return TRUE;
 }
 
-CAMERAPREVIEWDLL_API HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum)
-{
-	// Create the System Device Enumerator.
-	ICreateDevEnum *pDevEnum;
-	HRESULT hr = CoCreateInstance(CLSID_SystemDeviceEnum, NULL,
-		CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pDevEnum));
 
-	if (SUCCEEDED(hr))
-	{
-		// Create an enumerator for the category.
-		hr = pDevEnum->CreateClassEnumerator(category, ppEnum, 0);
-		if (hr == S_FALSE)
-		{
-			hr = VFW_E_NOT_FOUND;  // The category is empty. Treat as an error.
-		}
-		pDevEnum->Release();
-	}
-	return hr;
-}
-
-CAMERAPREVIEWDLL_API BOOL DisplayDeviceInformation(IEnumMoniker *pEnum, HWND hwnd)
-{
-	IMoniker *pMoniker = NULL;
-	HMENU hmenu = GetMenu(hwnd);
-	HMENU hSubMenu = GetSubMenu(hmenu, 1);
-	BOOL ret = TRUE;
-	int menu_count = GetMenuItemCount(hSubMenu);
-
-	if (menu_count < 0)
-	{
-		OutputDebugString(L"GetMenuItemCount API failed");
-		return FALSE;
-	}
-
-	if (menu_count > 1)
-	{
-		for (int flag1 = 0; flag1 < menu_count - 1; flag1++)
-		{
-			if (!DeleteMenu(hSubMenu, 1, MF_BYPOSITION))
-			{
-				OutputDebugString(L"DeleteMenu API failed");
-				return FALSE;
-			}
-		}
-	}
-
-	while (pEnum->Next(1, &pMoniker, NULL) == S_OK)
-	{
-		IPropertyBag *pPropBag;
-		HRESULT hr = pMoniker->BindToStorage(0, 0, IID_PPV_ARGS(&pPropBag));
-
-		if (FAILED(hr))
-		{
-			pMoniker->Release();
-			continue;
-		}
-
-		VARIANT var;
-		VariantInit(&var);
-
-		hr = pPropBag->Read(L"Description", &var, 0);
-		if (FAILED(hr))
-		{
-			hr = pPropBag->Read(L"FriendlyName", &var, 0);
-		}
-		if (SUCCEEDED(hr))
-		{
-			VariantClear(&var);
-		}
-
-		if (!AppendMenu(hSubMenu, MF_STRING, TRUE, var.bstrVal))
-		{
-			OutputDebugString(L"AppendMenu function failed");
-			ret = FALSE;
-		}
-
-		pPropBag->Release();
-		pMoniker->Release();
-	}
-	return ret;
-}
-
-CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd)
-{
-	HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
-	BOOL ret = TRUE;
-	if (SUCCEEDED(hr))
-	{
-		IEnumMoniker *pEnum;
-
-		hr = EnumerateDevices(CLSID_VideoInputDeviceCategory, &pEnum);
-
-		if (SUCCEEDED(hr))
-		{
-			if (!DisplayDeviceInformation(pEnum, hwnd))
-			{
-				OutputDebugString(L"DisplayDeviceInformation failed\n");
-				ret = FALSE;
-			}
-			pEnum->Release();
-			CoUninitialize();
-		}
-		else
-		{
-			OutputDebugString(L"EnumerateDevices failed\n");
-			CoUninitialize();
-			ret = FALSE;
-		}
-	}
-	else
-	{
-		OutputDebugString(L"CoInitializeEx failed\n");
-		ret = FALSE;
-	}
-
-	return ret;
-}
 
 // Make a graph builder object we can use for capture graph building
 //
 BOOL MakeBuilder()
 {
-	// we have one already
-	if (pBuilder)
-		return TRUE;
+	////// we have one already
+	////if (pBuilder)
+	////	return TRUE;
 
-	pBuilder = new ISampleCaptureGraphBuilder();
-	if (NULL == pBuilder)
+	//////pBuilder = new I()/*;*/
+
+	//if (NULL == pBuilder)
+	//{
+	//	return FALSE;
+	//}
+	CoInitialize(NULL);
+	HRESULT hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER,
+		IID_ICaptureGraphBuilder2, (void**)&pBuilder);
+	if (FAILED(hr))
 	{
 		return FALSE;
 	}
-
+	//CoUninitialize();
 	return TRUE;
 }
 
@@ -654,31 +631,42 @@ BOOL MakeGraph()
 // create the capture filters of the graph.  We need to keep them loaded from
 // the beginning, so we can set parameters on them and have them remembered
 //
-CAMERAPREVIEWDLL_API BOOL InitCapFilters()
+CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd)
 {
-	HRESULT hr = S_OK;
+	//HRESULT hr = S_OK;
 	BOOL f;
+	ICreateDevEnum *pDevEnum;
+	HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	hr = CoCreateInstance(CLSID_SystemDeviceEnum, NULL,
+		CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pDevEnum));
 
-	fCCAvail = FALSE;  // assume no closed captioning support
+	IEnumMoniker *pEnum;
 
-	f = MakeBuilder();
-	if (!f)
-	{
-		OutputDebugString(TEXT("Cannot instantiate graph builder"));
-		return FALSE;
-	}
+
+
 
 	//
 	// First, we need a Video Capture filter, and some interfaces
 	//
 	pVCap = NULL;
 
-	if (pmVideo != 0)
+	// Create an enumerator for the category.
+
+	hr = pDevEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &pEnum, 0);
+	if (hr == S_FALSE)
+	{
+		hr = VFW_E_NOT_FOUND;  // The category is empty. Treat as an error.
+	}
+	pDevEnum->Release();
+
+
+	pEnum->Next(1, &pMoniker, NULL);
+	if (pMoniker != 0)
 	{
 		IPropertyBag *pBag;
 		wachFriendlyName[0] = 0;
 
-		hr = pmVideo->BindToStorage(0, 0, IID_IPropertyBag, (void **)&pBag);
+		hr = pMoniker->BindToStorage(0, 0, IID_PPV_ARGS(&pBag));
 		if (SUCCEEDED(hr))
 		{
 			VARIANT var;
@@ -694,13 +682,22 @@ CAMERAPREVIEWDLL_API BOOL InitCapFilters()
 			pBag->Release();
 		}
 
-		hr = pmVideo->BindToObject(0, 0, IID_IBaseFilter, (void**)&pVCap);
+		hr = pMoniker->BindToObject(0, 0, IID_IBaseFilter, (void**)&pVCap);
 	}
 
 	if (pVCap == NULL)
 	{
 		OutputDebugString(TEXT("Error %x: Cannot create video capture filter"));
 		goto InitCapFiltersFail;
+	}
+
+	fCCAvail = FALSE;  // assume no closed captioning support
+
+	f = MakeBuilder();
+	if (!f)
+	{
+		OutputDebugString(TEXT("Cannot instantiate graph builder"));
+		return FALSE;
 	}
 
 	//
@@ -742,6 +739,7 @@ CAMERAPREVIEWDLL_API BOOL InitCapFilters()
 	hr = pBuilder->FindInterface(&PIN_CATEGORY_CAPTURE,
 		&MEDIATYPE_Interleaved, pVCap,
 		IID_IAMVideoCompression, (void **)&pVC);
+
 	if (hr != S_OK)
 	{
 		hr = pBuilder->FindInterface(&PIN_CATEGORY_CAPTURE,
@@ -802,61 +800,61 @@ CAMERAPREVIEWDLL_API BOOL InitCapFilters()
 
 	// Use the crossbar class to help us sort out all the possible video inputs
 	// The class needs to be given the capture filters ANALOGVIDEO input pin
-	{
-		IPin        *pP = 0;
-		IEnumPins   *pins = 0;
-		ULONG        n;
-		PIN_INFO     pinInfo;
-		BOOL         Found = FALSE;
-		IKsPropertySet *pKs = 0;
-		GUID guid;
-		DWORD dw;
-		BOOL fMatch = FALSE;
+	//{
+	//	IPin        *pP = 0;
+	//	IEnumPins   *pins = 0;
+	//	ULONG        n;
+	//	PIN_INFO     pinInfo;
+	//	BOOL         Found = FALSE;
+	//	IKsPropertySet *pKs = 0;
+	//	GUID guid;
+	//	DWORD dw;
+	//	BOOL fMatch = FALSE;
 
-		pCrossbar = NULL;
+	//	pCrossbar = NULL;
 
-		if (SUCCEEDED(pVCap->EnumPins(&pins)))
-		{
-			while (!Found && (S_OK == pins->Next(1, &pP, &n)))
-			{
-				if (S_OK == pP->QueryPinInfo(&pinInfo))
-				{
-					if (pinInfo.dir == PINDIR_INPUT)
-					{
-						// is this pin an ANALOGVIDEOIN input pin?
-						if (pP->QueryInterface(IID_IKsPropertySet,
-							(void **)&pKs) == S_OK)
-						{
-							if (pKs->Get(AMPROPSETID_Pin,
-								AMPROPERTY_PIN_CATEGORY, NULL, 0,
-								&guid, sizeof(GUID), &dw) == S_OK)
-							{
-								if (guid == PIN_CATEGORY_ANALOGVIDEOIN)
-									fMatch = TRUE;
-							}
-							pKs->Release();
-						}
+	//	if (SUCCEEDED(pVCap->EnumPins(&pins)))
+	//	{
+	//		while (!Found && (S_OK == pins->Next(1, &pP, &n)))
+	//		{
+	//			if (S_OK == pP->QueryPinInfo(&pinInfo))
+	//			{
+	//				if (pinInfo.dir == PINDIR_INPUT)
+	//				{
+	//					// is this pin an ANALOGVIDEOIN input pin?
+	//					if (pP->QueryInterface(IID_IKsPropertySet,
+	//						(void **)&pKs) == S_OK)
+	//					{
+	//						if (pKs->Get(AMPROPSETID_Pin,
+	//							AMPROPERTY_PIN_CATEGORY, NULL, 0,
+	//							&guid, sizeof(GUID), &dw) == S_OK)
+	//						{
+	//							if (guid == PIN_CATEGORY_ANALOGVIDEOIN)
+	//								fMatch = TRUE;
+	//						}
+	//						pKs->Release();
+	//					}
 
-						if (fMatch)
-						{
-							HRESULT hrCreate = S_OK;
-							pCrossbar = new CCrossbar(pP, &hrCreate);
-							if (!pCrossbar || FAILED(hrCreate))
-								break;
+	//					if (fMatch)
+	//					{
+	//						HRESULT hrCreate = S_OK;
+	//						pCrossbar = new CCrossbar(pP, &hrCreate);
+	//						if (!pCrossbar || FAILED(hrCreate))
+	//							break;
 
-							hr = pCrossbar->GetInputCount(&NumberOfVideoInputs);
-							Found = TRUE;
-						}
-					}
-					pinInfo.pFilter->Release();
-				}
-				pP->Release();
-			}
-			pins->Release();
-		}
-	}
+	//						hr = pCrossbar->GetInputCount(&NumberOfVideoInputs);
+	//						Found = TRUE;
+	//					}
+	//				}
+	//				pinInfo.pFilter->Release();
+	//			}
+	//			pP->Release();
+	//		}
+	//		pins->Release();
+	//	}
+	//}
 
-	
+
 
 
 	//hr = pmAudio->BindToObject(0, 0, IID_IBaseFilter, (void**)&pACap);
@@ -919,7 +917,7 @@ CAMERAPREVIEWDLL_API BOOL InitCapFilters()
 	//	OutputDebugString(TEXT("Cannot find ACapture:IAMStreamConfig"));
 	//}
 
-SkipAudio:
+//SkipAudio:
 
 	// Can this filter do closed captioning?
 	IPin *pPin;
@@ -940,8 +938,9 @@ SkipAudio:
 
 	// potential debug output - what the graph looks like
 	// DumpGraph(pFg, 1);
-	BuildPreviewGraph();
+	BuildPreviewGraph(hwnd);
 	StartPreview();
+	CoUninitialize();
 	return TRUE;
 
 InitCapFiltersFail:
@@ -967,9 +966,9 @@ void FreeCapFilters()
 	SAFE_RELEASE(pVC);
 	SAFE_RELEASE(pDlg);
 
-	if (pCrossbar)
+	/*if (pCrossbar)
 	{
 		delete pCrossbar;
 		pCrossbar = NULL;
-	}
+	}*/
 }
