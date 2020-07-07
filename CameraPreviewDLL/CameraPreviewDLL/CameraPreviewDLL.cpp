@@ -11,12 +11,15 @@
 
 #pragma comment(lib, "strmiids")
 #include "CameraPreviewDLL.h"
+#define REGISTER_FILTERGRAPH
+
 
 IMoniker *pMoniker = NULL;
 WCHAR wszCaptureFile[_MAX_PATH];
 WORD wCapFileSize;  // size in Meg
 //ISampleCaptureGraphBuilder *pBuilder;
 ICaptureGraphBuilder2 *pBuilder;
+IVMRAspectRatioControl9 *vmr9;
 IVideoWindow *pVW;
 IMediaEventEx *pME;
 IAMDroppedFrames *pDF;
@@ -220,6 +223,18 @@ CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd)
 	return ret;
 }
 
+CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, int Width, int Height)
+{
+	RECT rc;
+	GetClientRect(hwnd, &rc);
+	
+	// this is the video renderer window showing the preview
+	if (pVW)
+		pVW->SetWindowPosition(0, 0, rc.right, rc.bottom);
+
+	
+	return TRUE;
+}
 // Tear down everything downstream of a given filter
 void NukeDownstream(IBaseFilter *pf)
 {
@@ -416,7 +431,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 	hr = pFg->QueryInterface(IID_IVideoWindow, (void **)&pVW);
 	if (hr != NOERROR)
 	{
-		//OutputDebugString(TEXT("This graph cannot preview properly"));
+		OutputDebugString(TEXT("This graph cannot preview properly"));
 	}
 	else
 	{
@@ -458,12 +473,13 @@ BOOL BuildPreviewGraph(HWND hwnd)
 		pVW->put_WindowStyle(WS_CHILD);    // you are now a child
 
 		// give the preview window all our space but where the status bar is
-		GetClientRect(ghwndApp, &rc);
+		GetClientRect(hwnd, &rc);
 		cyBorder = GetSystemMetrics(SM_CYBORDER);
 		cy = gStatusStdHeight + cyBorder;
-		rc.bottom -= cy;
+		//rc.bottom -= cy;
 
-		pVW->SetWindowPosition(0, 0, CW_USEDEFAULT, CW_USEDEFAULT); // be this big
+		pVW->SetWindowPosition(0, 0, rc.right, rc.bottom); // be this big
+		pVW->put_FullScreenMode(OATRUE);
 		pVW->put_Visible(OATRUE);
 	}
 
@@ -720,7 +736,7 @@ CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd)
 	}
 
 	// Add the video capture filter to the graph with its friendly name
-	hr = pFg->AddFilter(pVCap, wachFriendlyName);
+		hr = pFg->AddFilter(pVCap, wachFriendlyName);
 
 	if (hr != NOERROR)
 	{

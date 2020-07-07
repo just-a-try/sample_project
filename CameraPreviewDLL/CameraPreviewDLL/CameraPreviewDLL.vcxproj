@@ -73,6 +73,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetName>CAMERAPREVIEWDLL</TargetName>
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>..\..\CameraPreviewApplication\Debug</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>CAMERAPREVIEWDLL</TargetName>

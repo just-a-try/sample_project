@@ -17,83 +17,82 @@
 //#include "SampleCGB.h"
 #pragma comment(lib, "strmiids")
 #include "CameraPreviewDLL.h"
-#define REGISTER_FILTERGRAPH
 
 
 #define MAX_LOADSTRING 100
 
 
-#define ABS(x) (((x) > 0) ? (x) : -(x))
+//#define ABS(x) (((x) > 0) ? (x) : -(x))
 
-IMoniker *pMoniker = NULL;
-WCHAR wszCaptureFile[_MAX_PATH];
-WORD wCapFileSize;  // size in Meg
-//ISampleCaptureGraphBuilder *pBuilder;
-ICaptureGraphBuilder2 *pBuilder;
+//IMoniker *pMoniker = NULL;
+//WCHAR wszCaptureFile[_MAX_PATH];
+//WORD wCapFileSize;  // size in Meg
+////ISampleCaptureGraphBuilder *pBuilder;
+//ICaptureGraphBuilder2 *pBuilder;
 IVideoWindow *pVW;
-IMediaEventEx *pME;
-IAMDroppedFrames *pDF;
-IAMVideoCompression *pVC;
-IAMVfwCaptureDialogs *pDlg;
-IAMStreamConfig *pASC;      // for audio cap
-IAMStreamConfig *pVSC;      // for video cap
-IBaseFilter *pRender;
-IBaseFilter *pVCap, *pACap;
-IGraphBuilder *pFg;
-IFileSinkFilter *pSink;
-IConfigAviMux *pConfigAviMux;
-int  iMasterStream;
-BOOL fCaptureGraphBuilt;
-BOOL fPreviewGraphBuilt;
-BOOL fCapturing;
-BOOL fPreviewing;
-BOOL fMPEG2;
-BOOL fCapAudio;
-BOOL fCapCC;
-BOOL fCCAvail;
-BOOL fCapAudioIsRelevant;
-bool fDeviceMenuPopulated;
-IMoniker *rgpmVideoMenu[10];
-IMoniker *rgpmAudioMenu[10];
-IMoniker *pmAudio;
-double FrameRate;
-BOOL fWantPreview;
-long lCapStartTime;
-long lCapStopTime;
-WCHAR wachFriendlyName[120];
-BOOL fUseTimeLimit;
-BOOL fUseFrameRate;
-DWORD dwTimeLimit;
-int iFormatDialogPos;
-int iSourceDialogPos;
-int iDisplayDialogPos;
-int iVCapDialogPos;
-int iVCrossbarDialogPos;
-int iTVTunerDialogPos;
-int iACapDialogPos;
-int iACrossbarDialogPos;
-int iTVAudioDialogPos;
-int iVCapCapturePinDialogPos;
-int iVCapPreviewPinDialogPos;
-int iACapCapturePinDialogPos;
-long lDroppedBase;
-long lNotBase;
-BOOL fPreviewFaked;
-int iVideoInputMenuPos;
-LONG NumberOfVideoInputs;
-HMENU hMenuPopup;
-int iNumVCapDevices;
-//CCrossbar *pCrossbar;
-HINSTANCE ghInstApp = 0;
-HACCEL ghAccel = 0;
-HFONT  ghfontApp = 0;
-TEXTMETRIC gtm = { 0 };
-TCHAR gszAppName[] = TEXT("AMCAP");
-HWND ghwndApp = 0, ghwndStatus = 0;
-HDEVNOTIFY ghDevNotify = 0;
-//PUnregisterDeviceNotification gpUnregisterDeviceNotification = 0;
-//PRegisterDeviceNotification gpRegisterDeviceNotification = 0;
-DWORD g_dwGraphRegister = 0;
+//IMediaEventEx *pME;
+//IAMDroppedFrames *pDF;
+//IAMVideoCompression *pVC;
+//IAMVfwCaptureDialogs *pDlg;
+//IAMStreamConfig *pASC;      // for audio cap
+//IAMStreamConfig *pVSC;      // for video cap
+//IBaseFilter *pRender;
+//IBaseFilter *pVCap, *pACap;
+//IGraphBuilder *pFg;
+//IFileSinkFilter *pSink;
+//IConfigAviMux *pConfigAviMux;
+//int  iMasterStream;
+//BOOL fCaptureGraphBuilt;
+//BOOL fPreviewGraphBuilt;
+//BOOL fCapturing;
+//BOOL fPreviewing;
+//BOOL fMPEG2;
+//BOOL fCapAudio;
+//BOOL fCapCC;
+//BOOL fCCAvail;
+//BOOL fCapAudioIsRelevant;
+//bool fDeviceMenuPopulated;
+//IMoniker *rgpmVideoMenu[10];
+//IMoniker *rgpmAudioMenu[10];
+//IMoniker *pmAudio;
+//double FrameRate;
+//BOOL fWantPreview;
+//long lCapStartTime;
+//long lCapStopTime;
+//WCHAR wachFriendlyName[120];
+//BOOL fUseTimeLimit;
+//BOOL fUseFrameRate;
+//DWORD dwTimeLimit;
+//int iFormatDialogPos;
+//int iSourceDialogPos;
+//int iDisplayDialogPos;
+//int iVCapDialogPos;
+//int iVCrossbarDialogPos;
+//int iTVTunerDialogPos;
+//int iACapDialogPos;
+//int iACrossbarDialogPos;
+//int iTVAudioDialogPos;
+//int iVCapCapturePinDialogPos;
+//int iVCapPreviewPinDialogPos;
+//int iACapCapturePinDialogPos;
+//long lDroppedBase;
+//long lNotBase;
+//BOOL fPreviewFaked;
+//int iVideoInputMenuPos;
+//LONG NumberOfVideoInputs;
+//HMENU hMenuPopup;
+//int iNumVCapDevices;
+////CCrossbar *pCrossbar;
+//HINSTANCE ghInstApp = 0;
+//HACCEL ghAccel = 0;
+//HFONT  ghfontApp = 0;
+//TEXTMETRIC gtm = { 0 };
+//TCHAR gszAppName[] = TEXT("AMCAP");
+//HWND ghwndApp = 0, ghwndStatus = 0;
+//HDEVNOTIFY ghDevNotify = 0;
+////PUnregisterDeviceNotification gpUnregisterDeviceNotification = 0;
+////PRegisterDeviceNotification gpRegisterDeviceNotification = 0;
+//DWORD g_dwGraphRegister = 0;
 
 
 // make sure the preview window inside our window is as big as the
@@ -228,7 +227,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	   OutputDebugString(L"EnumarateCamera failed\n");
 	   return FALSE;
    }
-   InitCapFilters(hwnd);
+   InitCapFilters(hWnd);
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
 
@@ -247,33 +246,14 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	HDC hdc;
-	RECT rc;
-	int cxBorder, cyBorder, cy;
-	TEXTMETRIC tm;
-	int gStatusStdHeight;
-
+	int Width, Height;
     switch (message)
     {
 	case WM_SIZE:
-		// make the preview window fit inside our window, taking up
-		// all of our client area except for the status window at the
-		// bottom
-	    hdc = GetDC(NULL);
-		GetTextMetrics(hdc, &tm);
-		gStatusStdHeight = tm.tmHeight * 3 / 2;
-		GetClientRect(hwnd, &rc);
-		cxBorder = GetSystemMetrics(SM_CXBORDER);
-		cyBorder = GetSystemMetrics(SM_CYBORDER);
-		cy = gStatusStdHeight + cyBorder;
-	/*	MoveWindow(ghwndStatus, -cxBorder, rc.bottom - cy,
-			rc.right + (2 * cxBorder), cy + cyBorder, TRUE);*/
-		rc.bottom -= cy;
-		// this is the video renderer window showing the preview
-		if (pVW)
-			pVW->SetWindowPosition(0, 0, rc.right, rc.bottom);
+		Width = LOWORD(lParam);
+		Height = HIWORD(lParam);
+		Resize(hwnd, Width, Height);
 		break;
-
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
