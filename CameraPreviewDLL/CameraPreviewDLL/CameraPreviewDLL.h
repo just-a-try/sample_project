@@ -23,7 +23,6 @@
 #include <dshowutil.h>
 #include "SampleCGB.h"
 
-#include "vmr9.h"
 //#include "crossbar.h"
 //#include "wxlist.h"
 

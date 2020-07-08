@@ -19,7 +19,7 @@ WCHAR wszCaptureFile[_MAX_PATH];
 WORD wCapFileSize;  // size in Meg
 //ISampleCaptureGraphBuilder *pBuilder;
 ICaptureGraphBuilder2 *pBuilder;
-IVMRAspectRatioControl9 *vmr9;
+IVMRWindowlessControl *g_pWc;
 IVideoWindow *pVW;
 IMediaEventEx *pME;
 IAMDroppedFrames *pDF;
@@ -29,6 +29,8 @@ IAMStreamConfig *pASC;      // for audio cap
 IAMStreamConfig *pVSC;      // for video cap
 IBaseFilter *pRender;
 IBaseFilter *pVCap, *pACap;
+IBaseFilter* pVmr = NULL;
+IVMRWindowlessControl* pWc = NULL;
 IGraphBuilder *pFg;
 IFileSinkFilter *pSink;
 IConfigAviMux *pConfigAviMux;
@@ -225,13 +227,28 @@ CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd)
 
 CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, int Width, int Height)
 {
-	RECT rc;
-	GetClientRect(hwnd, &rc);
-	
-	// this is the video renderer window showing the preview
-	if (pVW)
-		pVW->SetWindowPosition(0, 0, rc.right, rc.bottom);
+	//RECT rc;
+	//GetClientRect(hwnd, &rc);
+	//
+	//// this is the video renderer window showing the preview
+	//if (pVW)
+	//	pVW->SetWindowPosition(0, 0, rc.right, rc.bottom);
+	long lWidth, lHeight;
+	HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+	if (SUCCEEDED(hr))
+	{
+		RECT rcSrc, rcDest;
+		// Set the source rectangle.
+		SetRect(&rcSrc, 0, 0, lWidth, lHeight);
 
+		// Get the window client area.
+		GetClientRect(hwnd, &rcDest);
+		// Set the destination rectangle.
+		SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
+
+		// Set the video position.
+		hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+	}
 	
 	return TRUE;
 }
@@ -366,7 +383,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 
 		if (FAILED(hr))
 		{
-			//OutputDebugString(TEXT("Cannot build MPEG2 preview graph!"));
+			OutputDebugString(TEXT("Cannot build MPEG2 preview graph!"));
 		}
 	}
 	else
@@ -463,24 +480,71 @@ BOOL BuildPreviewGraph(HWND hwnd)
 			}
 		}
 
-		RECT rc;
-		TEXTMETRIC tm;
-		HDC hdc = GetDC(NULL);
-		GetTextMetrics(hdc, &tm);
+		HRESULT hr = CoCreateInstance(CLSID_VideoMixingRenderer, NULL,
+			CLSCTX_INPROC, IID_IBaseFilter, (void**)&pVmr);
 
-		int gStatusStdHeight = tm.tmHeight * 3 / 2;
-		pVW->put_Owner((OAHWND)hwnd);    // We own the window now
-		pVW->put_WindowStyle(WS_CHILD);    // you are now a child
+		if (hr != NOERROR)
+		{
+			OutputDebugString(TEXT("This graph cannot preview properly"));
+		}
 
-		// give the preview window all our space but where the status bar is
-		GetClientRect(hwnd, &rc);
-		cyBorder = GetSystemMetrics(SM_CYBORDER);
-		cy = gStatusStdHeight + cyBorder;
-		//rc.bottom -= cy;
+		hr = pFg->AddFilter(pVmr, L"Video Mixing Renderer");
+		if (FAILED(hr))
+		{
+			pVmr->Release();
+			return hr;
+		}
+		// Set the rendering mode.  
+		IVMRFilterConfig* pConfig;
+		hr = pVmr->QueryInterface(IID_IVMRFilterConfig, (void**)&pConfig);
+		if (SUCCEEDED(hr))
+		{
+			hr = pConfig->SetRenderingMode(VMRMode_Windowless);
+			pConfig->Release();
+		}
+		if (SUCCEEDED(hr))
+		{
+			// Set the window. 
+			hr = pVmr->QueryInterface(IID_IVMRWindowlessControl, (void**)&pWc);
+			if (SUCCEEDED(hr))
+			{
+				hr = pWc->SetVideoClippingWindow(hwnd);
+				if (SUCCEEDED(hr))
+				{
+					g_pWc = pWc; // Return this as an AddRef'd pointer. 
+				}
+				else
+				{
+					// An error occurred, so release the interface.
+					pWc->Release();
+				}
+			}
+		}
 
-		pVW->SetWindowPosition(0, 0, rc.right, rc.bottom); // be this big
-		pVW->put_FullScreenMode(OATRUE);
-		pVW->put_Visible(OATRUE);
+		//hr = pFg->QueryInterface(IID_IVMRWindowlessControl, (void **)&g_pWc);
+		//if (hr != NOERROR)
+		//{
+		//	OutputDebugString(TEXT("This graph cannot preview properly"));
+		//}
+
+		//RECT rc;
+		//TEXTMETRIC tm;
+		//HDC hdc = GetDC(NULL);
+		//GetTextMetrics(hdc, &tm);
+
+		//int gStatusStdHeight = tm.tmHeight * 3 / 2;
+		//pVW->put_Owner((OAHWND)hwnd);    // We own the window now
+		//pVW->put_WindowStyle(WS_CHILD);    // you are now a child
+
+		//// give the preview window all our space but where the status bar is
+		//GetClientRect(hwnd, &rc);
+		//cyBorder = GetSystemMetrics(SM_CYBORDER);
+		//cy = gStatusStdHeight + cyBorder;
+		////rc.bottom -= cy;
+
+		//pVW->SetWindowPosition(0, 0, rc.right, rc.bottom); // be this big
+		//pVW->put_FullScreenMode(OATRUE);
+		//pVW->put_Visible(OATRUE);
 	}
 
 	// now tell it what frame rate to capture at.  Just find the format it
@@ -503,7 +567,6 @@ BOOL BuildPreviewGraph(HWND hwnd)
 				hr = pVSC->SetFormat(pmt);
 				if (hr != NOERROR)
 					OutputDebugString(L"%x: Cannot set frame rate for preview");
-				//OutputDebugString(TEXT("%x: Cannot set frame rate for preview"), hr);
 			}
 			DeleteMediaType(pmt);
 		}
@@ -641,6 +704,7 @@ BOOL MakeGraph()
 	HRESULT hr = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC,
 		IID_IGraphBuilder, (LPVOID *)&pFg);
 
+
 	return (hr == NOERROR) ? TRUE : FALSE;
 }
 
@@ -674,7 +738,6 @@ CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd)
 		hr = VFW_E_NOT_FOUND;  // The category is empty. Treat as an error.
 	}
 	pDevEnum->Release();
-
 
 	pEnum->Next(1, &pMoniker, NULL);
 	if (pMoniker != 0)
