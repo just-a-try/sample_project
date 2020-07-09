@@ -375,6 +375,48 @@ BOOL BuildPreviewGraph(HWND hwnd)
 	// if BOTH exist, it's a DV filter and the only way to get the audio is to use
 	// the interleaved pin.  Using the Video pin on a DV filter is only useful if
 	// you don't want the audio.
+	hr = CoCreateInstance(CLSID_VideoMixingRenderer, NULL,
+		CLSCTX_INPROC, IID_IBaseFilter, (void**)&pVmr);
+
+	if (hr != NOERROR)
+	{
+		OutputDebugString(TEXT("This graph cannot preview properly"));
+	}
+
+	hr = pFg->AddFilter(pVmr, L"Video Mixing Renderer");
+	if (FAILED(hr))
+	{
+		pVmr->Release();
+		return hr;
+	}
+
+	// Set the rendering mode.  
+	IVMRFilterConfig* pConfig;
+	hr = pVmr->QueryInterface(IID_IVMRFilterConfig, (void**)&pConfig);
+	if (SUCCEEDED(hr))
+	{
+		hr = pConfig->SetRenderingMode(VMRMode_Windowless);
+		pConfig->Release();
+	}
+	if (SUCCEEDED(hr))
+	{
+		// Set the window. 
+		hr = pVmr->QueryInterface(IID_IVMRWindowlessControl, (void**)&pWc);
+
+		if (SUCCEEDED(hr))
+		{
+			hr = pWc->SetVideoClippingWindow(hwnd);
+			if (SUCCEEDED(hr))
+			{
+				g_pWc = pWc; // Return this as an AddRef'd pointer. 
+			}
+			else
+			{
+				// An error occurred, so release the interface.
+				pWc->Release();
+			}
+		}
+	}
 
 	if (fMPEG2)
 	{
@@ -445,81 +487,83 @@ BOOL BuildPreviewGraph(HWND hwnd)
 	// ICaptureGraphBuilder2::FindInterface, because the filtergraph needs to
 	// know we own the window so it can give us display changed messages, etc.
 
-	hr = pFg->QueryInterface(IID_IVideoWindow, (void **)&pVW);
-	if (hr != NOERROR)
-	{
-		OutputDebugString(TEXT("This graph cannot preview properly"));
-	}
-	else
-	{
-		//Find out if this is a DV stream
-		AM_MEDIA_TYPE * pmtDV;
+	//hr = pFg->QueryInterface(IID_IVideoWindow, (void **)&pVW);
+	//if (hr != NOERROR)
+	//{
+	//	OutputDebugString(TEXT("This graph cannot preview properly"));
+	//}
+	//else
+	//{
+	//	//Find out if this is a DV stream
+	//	AM_MEDIA_TYPE * pmtDV;
 
-		if (pVSC && SUCCEEDED(pVSC->GetFormat(&pmtDV)))
-		{
-			if (pmtDV->formattype == FORMAT_DvInfo)
-			{
-				// in this case we want to set the size of the parent window to that of
-				// current DV resolution.
-				// We get that resolution from the IVideoWindow.
-				SmartPtr<IBasicVideo> pBV;
+	//	if (pVSC && SUCCEEDED(pVSC->GetFormat(&pmtDV)))
+	//	{
+	//		if (pmtDV->formattype == FORMAT_DvInfo)
+	//		{
+	//			// in this case we want to set the size of the parent window to that of
+	//			// current DV resolution.
+	//			// We get that resolution from the IVideoWindow.
+	//			SmartPtr<IBasicVideo> pBV;
 
-				// If we got here, pVW is not NULL 
-				ASSERT(pVW != NULL);
-				hr = pVW->QueryInterface(IID_IBasicVideo, (void**)&pBV);
+	//			// If we got here, pVW is not NULL 
+	//			ASSERT(pVW != NULL);
+	//			hr = pVW->QueryInterface(IID_IBasicVideo, (void**)&pBV);
 
-				if (SUCCEEDED(hr))
-				{
-					HRESULT hr1, hr2;
-					long lWidth, lHeight;
+	//			if (SUCCEEDED(hr))
+	//			{
+	//				HRESULT hr1, hr2;
+	//				long lWidth, lHeight;
 
-					hr1 = pBV->get_VideoHeight(&lHeight);
-					hr2 = pBV->get_VideoWidth(&lWidth);
-					
-				}
-			}
-		}
+	//				hr1 = pBV->get_VideoHeight(&lHeight);
+	//				hr2 = pBV->get_VideoWidth(&lWidth);
+	//				
+	//			}
+	//		}
+	//	}
 
-		HRESULT hr = CoCreateInstance(CLSID_VideoMixingRenderer, NULL,
-			CLSCTX_INPROC, IID_IBaseFilter, (void**)&pVmr);
+		// hr = CoCreateInstance(CLSID_VideoMixingRenderer, NULL,
+		//	CLSCTX_INPROC, IID_IBaseFilter, (void**)&pVmr);
 
-		if (hr != NOERROR)
-		{
-			OutputDebugString(TEXT("This graph cannot preview properly"));
-		}
+		//if (hr != NOERROR)
+		//{
+		//	OutputDebugString(TEXT("This graph cannot preview properly"));
+		//}
 
-		hr = pFg->AddFilter(pVmr, L"Video Mixing Renderer");
-		if (FAILED(hr))
-		{
-			pVmr->Release();
-			return hr;
-		}
-		// Set the rendering mode.  
-		IVMRFilterConfig* pConfig;
-		hr = pVmr->QueryInterface(IID_IVMRFilterConfig, (void**)&pConfig);
-		if (SUCCEEDED(hr))
-		{
-			hr = pConfig->SetRenderingMode(VMRMode_Windowless);
-			pConfig->Release();
-		}
-		if (SUCCEEDED(hr))
-		{
-			// Set the window. 
-			hr = pVmr->QueryInterface(IID_IVMRWindowlessControl, (void**)&pWc);
-			if (SUCCEEDED(hr))
-			{
-				hr = pWc->SetVideoClippingWindow(hwnd);
-				if (SUCCEEDED(hr))
-				{
-					g_pWc = pWc; // Return this as an AddRef'd pointer. 
-				}
-				else
-				{
-					// An error occurred, so release the interface.
-					pWc->Release();
-				}
-			}
-		}
+		//hr = pFg->AddFilter(pVmr, L"Video Mixing Renderer");
+		//if (FAILED(hr))
+		//{
+		//	pVmr->Release();
+		//	return hr;
+		//}
+
+		//// Set the rendering mode.  
+		//IVMRFilterConfig* pConfig;
+		//hr = pVmr->QueryInterface(IID_IVMRFilterConfig, (void**)&pConfig);
+		//if (SUCCEEDED(hr))
+		//{
+		//	hr = pConfig->SetRenderingMode(VMRMode_Windowless);
+		//	pConfig->Release();
+		//}
+		//if (SUCCEEDED(hr))
+		//{
+		//	// Set the window. 
+		//	hr = pVmr->QueryInterface(IID_IVMRWindowlessControl, (void**)&pWc);
+
+		//	if (SUCCEEDED(hr))
+		//	{
+		//		hr = pWc->SetVideoClippingWindow(hwnd);
+		//		if (SUCCEEDED(hr))
+		//		{
+		//			g_pWc = pWc; // Return this as an AddRef'd pointer. 
+		//		}
+		//		else
+		//		{
+		//			// An error occurred, so release the interface.
+		//			pWc->Release();
+		//		}
+		//	}
+		//}
 
 		//hr = pFg->QueryInterface(IID_IVMRWindowlessControl, (void **)&g_pWc);
 		//if (hr != NOERROR)
@@ -545,36 +589,54 @@ BOOL BuildPreviewGraph(HWND hwnd)
 		//pVW->SetWindowPosition(0, 0, rc.right, rc.bottom); // be this big
 		//pVW->put_FullScreenMode(OATRUE);
 		//pVW->put_Visible(OATRUE);
-	}
+
+		long lWidth, lHeight;
+	    hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+		if (SUCCEEDED(hr))
+		{
+			RECT rcSrc, rcDest;
+			// Set the source rectangle.
+			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_LETTER_BOX);
+			SetRect(&rcSrc, 0, 0, lWidth, lHeight);
+
+			// Get the window client area.
+			GetClientRect(hwnd, &rcDest);
+			// Set the destination rectangle.
+			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
+
+			// Set the video position.
+			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+		}
+	
 
 	// now tell it what frame rate to capture at.  Just find the format it
 	// is capturing with, and leave everything alone but change the frame rate
 	// No big deal if it fails.  It's just for preview
 	// !!! Should we then talk to the preview pin?
 
-	if (pVSC && fUseFrameRate)
-	{
-		hr = pVSC->GetFormat(&pmt);
+	//if (pVSC && fUseFrameRate)
+	//{
+	//	hr = pVSC->GetFormat(&pmt);
 
-		// DV capture does not use a VIDEOINFOHEADER
-		if (hr == NOERROR)
-		{
-			if (pmt->formattype == FORMAT_VideoInfo)
-			{
-				VIDEOINFOHEADER *pvi = (VIDEOINFOHEADER *)pmt->pbFormat;
-				pvi->AvgTimePerFrame = (LONGLONG)(10000000 / FrameRate);
+	//	// DV capture does not use a VIDEOINFOHEADER
+	//	if (hr == NOERROR)
+	//	{
+	//		if (pmt->formattype == FORMAT_VideoInfo)
+	//		{
+	//			VIDEOINFOHEADER *pvi = (VIDEOINFOHEADER *)pmt->pbFormat;
+	//			pvi->AvgTimePerFrame = (LONGLONG)(10000000 / FrameRate);
 
-				hr = pVSC->SetFormat(pmt);
-				if (hr != NOERROR)
-					OutputDebugString(L"%x: Cannot set frame rate for preview");
-			}
-			DeleteMediaType(pmt);
-		}
-	}
+	//			hr = pVSC->SetFormat(pmt);
+	//			if (hr != NOERROR)
+	//				OutputDebugString(L"%x: Cannot set frame rate for preview");
+	//		}
+	//		DeleteMediaType(pmt);
+	//	}
+	//}
 
 	// make sure we process events while we're previewing!
 
-	hr = pFg->QueryInterface(IID_IMediaEventEx, (void **)&pME);
+	//hr = pFg->QueryInterface(IID_IMediaEventEx, (void **)&pME);
 
 	/*if (hr == NOERROR)
 	{
@@ -586,19 +648,20 @@ BOOL BuildPreviewGraph(HWND hwnd)
 
 	// Add our graph to the running object table, which will allow
 	// the GraphEdit application to "spy" on our graph
-#ifdef REGISTER_FILTERGRAPH
-	hr = AddGraphToRot(pFg, &g_dwGraphRegister);
-	if (FAILED(hr))
-	{
-		OutputDebugString(TEXT("Failed to register filter graph with ROT!  hr=0x%x"));
-		g_dwGraphRegister = 0;
-	}
-#endif
+//#ifdef REGISTER_FILTERGRAPH
+//	hr = AddGraphToRot(pFg, &g_dwGraphRegister);
+//	if (FAILED(hr))
+//	{
+//		OutputDebugString(TEXT("Failed to register filter graph with ROT!  hr=0x%x"));
+//		g_dwGraphRegister = 0;
+//	}
+//#endif
 
 	// All done.
 	fPreviewGraphBuilt = TRUE;
 	return TRUE;
 }
+
 
 // Start previewing
 //
@@ -721,10 +784,6 @@ CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd)
 		CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pDevEnum));
 
 	IEnumMoniker *pEnum;
-
-
-
-
 	//
 	// First, we need a Video Capture filter, and some interfaces
 	//
