@@ -227,12 +227,7 @@ CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd)
 
 CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, int Width, int Height)
 {
-	//RECT rc;
-	//GetClientRect(hwnd, &rc);
-	//
-	//// this is the video renderer window showing the preview
-	//if (pVW)
-	//	pVW->SetWindowPosition(0, 0, rc.right, rc.bottom);
+	
 	long lWidth, lHeight;
 	HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
 	if (SUCCEEDED(hr))
@@ -246,12 +241,64 @@ CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, int Width, int Height)
 		// Set the destination rectangle.
 		SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 
+		hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_LETTER_BOX);
 		// Set the video position.
 		hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
 	}
 	
 	return TRUE;
 }
+
+CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
+{
+	int mouse_wheel_value = HIWORD(wParam);
+	
+	if (mouse_wheel_value == 120)
+	{
+		//MessageBox(NULL, L"", L"zoom in", NULL);
+		long lWidth, lHeight;
+		HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+		if (SUCCEEDED(hr))
+		{
+			RECT rcSrc, rcDest;
+			// Set the source rectangle.
+			SetRect(&rcSrc, 0, 0, lWidth - 200, lHeight - 200);
+
+			// Get the window client area.
+			GetClientRect(hWnd, &rcDest);
+			// Set the destination rectangle.
+			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
+
+			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_LETTER_BOX);
+			// Set the video position.
+			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+		}
+	}
+	else if(mouse_wheel_value > 120)
+	{
+		//MessageBox(NULL, L"", L"zoom out", NULL);
+		long lWidth, lHeight;
+		HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+		if (SUCCEEDED(hr))
+		{
+			RECT rcSrc, rcDest;
+			// Set the source rectangle.
+			SetRect(&rcSrc, 0, 0, lWidth, lHeight);
+
+			// Get the window client area.
+			GetClientRect(hWnd, &rcDest);
+			// Set the destination rectangle.
+			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
+
+			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_LETTER_BOX);
+			// Set the video position.
+			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+		}
+	}
+
+	return TRUE;
+}
+
 // Tear down everything downstream of a given filter
 void NukeDownstream(IBaseFilter *pf)
 {
@@ -421,7 +468,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 	if (fMPEG2)
 	{
 		hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
-			&MEDIATYPE_Stream, pVCap, NULL, NULL);
+			&MEDIATYPE_Stream, pVCap, NULL, pVmr);
 
 		if (FAILED(hr))
 		{
@@ -431,7 +478,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 	else
 	{
 		hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
-			&MEDIATYPE_Interleaved, pVCap, NULL, NULL);
+			&MEDIATYPE_Interleaved, pVCap, NULL, pVmr);
 
 		if (hr == VFW_S_NOPREVIEWPIN)
 		{
@@ -442,7 +489,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 		{
 			// maybe it's DV?
 			hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
-				&MEDIATYPE_Video, pVCap, NULL, NULL);
+				&MEDIATYPE_Video, pVCap, NULL, pVmr);
 
 			if (hr == VFW_S_NOPREVIEWPIN)
 			{
@@ -462,7 +509,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 		// depending on the capture driver
 		//
 
-		if (fCapCC)
+		/*if (fCapCC)
 		{
 			hr = pBuilder->RenderStream(&PIN_CATEGORY_CC, NULL,
 				pVCap, NULL, NULL);
@@ -475,7 +522,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 					OutputDebugString(TEXT("Cannot render closed captioning"));
 				}
 			}
-		}
+		}*/
 	}
 
 	//
@@ -782,7 +829,7 @@ CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd)
 	HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
 	hr = CoCreateInstance(CLSID_SystemDeviceEnum, NULL,
 		CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pDevEnum));
-
+	hWnd = hwnd;
 	IEnumMoniker *pEnum;
 	//
 	// First, we need a Video Capture filter, and some interfaces

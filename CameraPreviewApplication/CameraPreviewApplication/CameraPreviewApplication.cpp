@@ -227,6 +227,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	   OutputDebugString(L"EnumarateCamera failed\n");
 	   return FALSE;
    }
+
    InitCapFilters(hWnd);
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
@@ -253,6 +254,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		Width = LOWORD(lParam);
 		Height = HIWORD(lParam);
 		Resize(hwnd, Width, Height);
+		break;
+	case WM_MOUSEWHEEL:
+		zoom_in_and_out(wParam);
 		break;
     case WM_COMMAND:
         {

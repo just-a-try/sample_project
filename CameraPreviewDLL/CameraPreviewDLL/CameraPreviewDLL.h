@@ -48,5 +48,6 @@ BOOL MakeGraph();
 CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, int Width, int  Height);
 CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd);
 CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd);
+CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam);
  HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum);
  BOOL DisplayDeviceInformation(IEnumMoniker *pEnum, HWND hwnd);
