@@ -241,7 +241,7 @@ CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, int Width, int Height)
 		// Set the destination rectangle.
 		SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 
-		hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_LETTER_BOX);
+		hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
 		// Set the video position.
 		hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
 	}
@@ -252,7 +252,7 @@ CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, int Width, int Height)
 CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 {
 	int mouse_wheel_value = HIWORD(wParam);
-	
+	static int reduce = 100;
 	if (mouse_wheel_value == 120)
 	{
 		//MessageBox(NULL, L"", L"zoom in", NULL);
@@ -262,14 +262,14 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 		{
 			RECT rcSrc, rcDest;
 			// Set the source rectangle.
-			SetRect(&rcSrc, 0, 0, lWidth - 200, lHeight - 200);
+			SetRect(&rcSrc, 0, 0, lWidth, lHeight);
 
 			// Get the window client area.
 			GetClientRect(hWnd, &rcDest);
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 
-			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_LETTER_BOX);
+			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
 			// Set the video position.
 			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
 		}
@@ -290,7 +290,7 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 
-			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_LETTER_BOX);
+			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
 			// Set the video position.
 			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
 		}
@@ -643,7 +643,6 @@ BOOL BuildPreviewGraph(HWND hwnd)
 		{
 			RECT rcSrc, rcDest;
 			// Set the source rectangle.
-			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_LETTER_BOX);
 			SetRect(&rcSrc, 0, 0, lWidth, lHeight);
 
 			// Get the window client area.
@@ -651,6 +650,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 
+			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
 			// Set the video position.
 			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
 		}
