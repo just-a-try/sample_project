@@ -229,7 +229,13 @@ CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, int Width, int Height)
 {
 	
 	long lWidth, lHeight;
+	//int r_height, r_width;
 	HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+	/*r_height = Height / lHeight;
+	r_width = Width / lWidth;*/
+
+	//int scale = min(r_height, r_width);
+
 	if (SUCCEEDED(hr))
 	{
 		RECT rcSrc, rcDest;
