@@ -83,6 +83,9 @@ TEXTMETRIC gtm = { 0 };
 TCHAR gszAppName[] = TEXT("AMCAP");
 HWND ghwndApp = 0, ghwndStatus = 0, hWnd;
 HDEVNOTIFY ghDevNotify = 0;
+long lWidth, lHeight;
+long ZWidth, ZHeight;
+
 //PUnregisterDeviceNotification gpUnregisterDeviceNotification = 0;
 //PRegisterDeviceNotification gpRegisterDeviceNotification = 0;
 DWORD g_dwGraphRegister = 0;
@@ -225,29 +228,56 @@ CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd)
 	return ret;
 }
 
-CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, int Width, int Height)
+double get_gcd(double num1, double num2)
 {
-	
-	long lWidth, lHeight;
-	//int r_height, r_width;
-	HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
-	/*r_height = Height / lHeight;
-	r_width = Width / lWidth;*/
 
-	//int scale = min(r_height, r_width);
+	while (num1 != num2)
+	{
+		if (num1 > num2)
+			num1 -= num2;
+		else
+			num2 -= num1;
+	}
+
+	return num1;
+}
+
+CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, double Width, double Height)
+{
+	HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+	double s_ratio = (double)lWidth / (double)lHeight;
+	double d_ratio = Width / Height;
+
+	double gcd_value = get_gcd(Width, Height);
+
+	double rv_width = Width / gcd_value;
+	double rv_height = Height / gcd_value;
+	double size_reduce;
+
+	if (d_ratio > 1)
+	{
+		size_reduce = lHeight - (lWidth / d_ratio);
+		lHeight = lHeight - size_reduce;
+
+	}
+	else if(d_ratio < 1)
+	{
+		size_reduce = lWidth - (lHeight * d_ratio);
+		lWidth = lWidth - size_reduce;
+	}
+	
+	ZWidth = lWidth;
+	ZHeight = lHeight;
 
 	if (SUCCEEDED(hr))
 	{
 		RECT rcSrc, rcDest;
 		// Set the source rectangle.
-		SetRect(&rcSrc, 0, 0, lWidth, lHeight);
+		SetRect(&rcSrc, 0, 0, (int)lWidth, (int)lHeight);
 
-		// Get the window client area.
-		GetClientRect(hwnd, &rcDest);
 		// Set the destination rectangle.
-		SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
+		SetRect(&rcDest, 0, 0, Width, Height);
 
-		hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
 		// Set the video position.
 		hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
 	}
@@ -258,48 +288,52 @@ CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, int Width, int Height)
 CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 {
 	int mouse_wheel_value = HIWORD(wParam);
-	static int reduce = 100;
+	int reduce = 100;
+	//long Width = lWidth, Height = lHeight;
 	if (mouse_wheel_value == 120)
 	{
 		//MessageBox(NULL, L"", L"zoom in", NULL);
-		long lWidth, lHeight;
-		HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
-		if (SUCCEEDED(hr))
-		{
+		//HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+		/*if (SUCCEEDED(hr))
+		{*/
 			RECT rcSrc, rcDest;
 			// Set the source rectangle.
-			SetRect(&rcSrc, 0, 0, lWidth, lHeight);
-
+			ZWidth -= 50;
+			ZHeight -= 50;
+			SetRect(&rcSrc, 0, 0, ZWidth, ZHeight);
 			// Get the window client area.
 			GetClientRect(hWnd, &rcDest);
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 
-			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
+			HRESULT hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
 			// Set the video position.
 			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
-		}
+		//}
 	}
 	else if(mouse_wheel_value > 120)
 	{
 		//MessageBox(NULL, L"", L"zoom out", NULL);
-		long lWidth, lHeight;
-		HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
-		if (SUCCEEDED(hr))
-		{
+		//long lWidth, lHeight;
+		reduce = 100;
+		//HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+		/*if (SUCCEEDED(hr))
+		{*/
 			RECT rcSrc, rcDest;
 			// Set the source rectangle.
-			SetRect(&rcSrc, 0, 0, lWidth, lHeight);
+			ZWidth += 50;
+			ZHeight += 50;
+			SetRect(&rcSrc, 0, 0, ZWidth, ZHeight);
 
 			// Get the window client area.
 			GetClientRect(hWnd, &rcDest);
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 
-			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
+			HRESULT hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
 			// Set the video position.
 			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
-		}
+		//}
 	}
 
 	return TRUE;
@@ -396,9 +430,7 @@ void TearDownGraph()
 
 BOOL BuildPreviewGraph(HWND hwnd)
 {
-	int  cy, cyBorder;
 	HRESULT hr;
-	AM_MEDIA_TYPE *pmt;
 
 	// we have one already
 	if (fPreviewGraphBuilt)
@@ -654,7 +686,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 			// Get the window client area.
 			GetClientRect(hwnd, &rcDest);
 			// Set the destination rectangle.
-			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
+			SetRect(&rcDest, 0, 0, 1360, 680);
 
 			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
 			// Set the video position.
