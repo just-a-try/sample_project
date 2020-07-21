@@ -254,7 +254,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		Width = LOWORD(lParam);
 		Height = HIWORD(lParam);
 		Resize(hwnd, Width, Height);
-		break;.
+		break;
 	case WM_MOUSEWHEEL:
 		zoom_in_and_out(wParam);
 		break;

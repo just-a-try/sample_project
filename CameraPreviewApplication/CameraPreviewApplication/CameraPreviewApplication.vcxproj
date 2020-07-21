@@ -184,9 +184,6 @@ Psapi.lib;Strmiids.lib;CAMERAPREVIEWDLL.lib;%(AdditionalDependencies)</Additiona
     <Image Include="CameraPreviewApplication.ico" />
     <Image Include="small.ico" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\CameraPreviewDLL\CameraPreviewDLL.sln" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
