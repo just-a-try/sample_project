@@ -247,14 +247,14 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	int Width, Height;
+	double Width, Height;
     switch (message)
     {
 	case WM_SIZE:
 		Width = LOWORD(lParam);
 		Height = HIWORD(lParam);
 		Resize(hwnd, Width, Height);
-		break;
+		break;.
 	case WM_MOUSEWHEEL:
 		zoom_in_and_out(wParam);
 		break;

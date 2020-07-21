@@ -45,7 +45,7 @@ void TearDownGraph();
 void NukeDownstream(IBaseFilter *pf);
 BOOL MakeBuilder();
 BOOL MakeGraph();
-CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, int Width, int  Height);
+CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, double Width, double  Height);
 CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd);
 CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd);
 CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam);

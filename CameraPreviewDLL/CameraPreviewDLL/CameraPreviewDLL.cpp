@@ -273,7 +273,7 @@ CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, double Width, double Height)
 	{
 		RECT rcSrc, rcDest;
 		// Set the source rectangle.
-		SetRect(&rcSrc, 0, 0, (int)lWidth, (int)lHeight);
+		SetRect(&rcSrc, 0, 64, 1280, 591);
 
 		// Set the destination rectangle.
 		SetRect(&rcDest, 0, 0, Width, Height);
@@ -297,25 +297,25 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 		//HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
 		/*if (SUCCEEDED(hr))
 		{*/
-		if (zoom_in_factor <= 8)
-		{
+		/*if (zoom_in_factor <= 8)
+		{*/
 			RECT rcSrc, rcDest;
 			// Get the window client area.
 			
-			Width = ZWidth / zoom_in_factor;
-			Height = ZHeight / zoom_in_factor;
-			Wdiff_source_dest = ZWidth - Width;
-			Hdiff_source_dest = ZHeight - Height;
-			zoom_in_factor *= 2;
+			/*Width = ZWidth / 2;
+			Height = ZHeight / 2;
+			Wdiff_source_dest = 1280 - Width;
+			Hdiff_source_dest = 720 - Height;
+			zoom_in_factor *= 2;*/
 			// Set the source rectangle.
-			SetRect(&rcSrc, 320, 148, 640, 295);
+			SetRect(&rcSrc, 360, 212, 640, 295);
 			GetClientRect(hWnd, &rcDest);
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 			// Set the video position.
 			HRESULT hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
 			int a = 0;
-		}
+		//}
 		//}
 	}
 	else if(mouse_wheel_value > 120)
@@ -329,12 +329,13 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 			GetClientRect(hWnd, &rcDest);
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
-			ZWidth *= 2;
-			ZHeight *= 2;
-			Wdiff_source_dest = lWidth - ZWidth;
-			Hdiff_source_dest = lHeight - ZHeight;
-			
-		    SetRect(&rcSrc, (int)(Wdiff_source_dest / 2), (int)(Hdiff_source_dest / 2), ZWidth, ZHeight);
+			/*ZWidth *= 2;
+			ZHeight *= 2;*/
+			/*Wdiff_source_dest = lWidth - ZWidth;
+			Hdiff_source_dest = lHeight - ZHeight;*/
+
+			SetRect(&rcSrc, 0, 0, ZWidth, ZHeight);
+		    //SetRect(&rcSrc, (int)(Wdiff_source_dest / 2), (int)(Hdiff_source_dest / 2), ZWidth, ZHeight);
 			
 			// Set the video position.
 			g_pWc->SetVideoPosition(&rcSrc, &rcDest);
@@ -693,7 +694,6 @@ BOOL BuildPreviewGraph(HWND hwnd)
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 
-			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
 			// Set the video position.
 			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
 		}
