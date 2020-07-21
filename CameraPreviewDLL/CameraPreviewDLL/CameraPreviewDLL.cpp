@@ -288,51 +288,56 @@ CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, double Width, double Height)
 CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 {
 	int mouse_wheel_value = HIWORD(wParam);
-	int reduce = 100;
+	int Wdiff_source_dest, Hdiff_source_dest, Width, Height;
+	static int zoom_in_factor = 2;
+
 	//long Width = lWidth, Height = lHeight;
 	if (mouse_wheel_value == 120)
 	{
-		//MessageBox(NULL, L"", L"zoom in", NULL);
 		//HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
 		/*if (SUCCEEDED(hr))
 		{*/
+		if (zoom_in_factor <= 8)
+		{
 			RECT rcSrc, rcDest;
-			// Set the source rectangle.
-			ZWidth -= 50;
-			ZHeight -= 50;
-			SetRect(&rcSrc, 0, 0, ZWidth, ZHeight);
 			// Get the window client area.
+			
+			Width = ZWidth / zoom_in_factor;
+			Height = ZHeight / zoom_in_factor;
+			Wdiff_source_dest = ZWidth - Width;
+			Hdiff_source_dest = ZHeight - Height;
+			zoom_in_factor *= 2;
+			// Set the source rectangle.
+			SetRect(&rcSrc, 320, 148, 640, 295);
 			GetClientRect(hWnd, &rcDest);
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
-
-			HRESULT hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
 			// Set the video position.
-			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+			HRESULT hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+			int a = 0;
+		}
 		//}
 	}
 	else if(mouse_wheel_value > 120)
 	{
-		//MessageBox(NULL, L"", L"zoom out", NULL);
 		//long lWidth, lHeight;
-		reduce = 100;
 		//HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
 		/*if (SUCCEEDED(hr))
 		{*/
 			RECT rcSrc, rcDest;
-			// Set the source rectangle.
-			ZWidth += 50;
-			ZHeight += 50;
-			SetRect(&rcSrc, 0, 0, ZWidth, ZHeight);
-
 			// Get the window client area.
 			GetClientRect(hWnd, &rcDest);
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
-
-			HRESULT hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
+			ZWidth *= 2;
+			ZHeight *= 2;
+			Wdiff_source_dest = lWidth - ZWidth;
+			Hdiff_source_dest = lHeight - ZHeight;
+			
+		    SetRect(&rcSrc, (int)(Wdiff_source_dest / 2), (int)(Hdiff_source_dest / 2), ZWidth, ZHeight);
+			
 			// Set the video position.
-			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+			g_pWc->SetVideoPosition(&rcSrc, &rcDest);
 		//}
 	}
 
@@ -686,7 +691,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 			// Get the window client area.
 			GetClientRect(hwnd, &rcDest);
 			// Set the destination rectangle.
-			SetRect(&rcDest, 0, 0, 1360, 680);
+			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 
 			hr = g_pWc->SetAspectRatioMode(VMR_ARMODE_NONE);
 			// Set the video position.
@@ -746,6 +751,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 	fPreviewGraphBuilt = TRUE;
 	return TRUE;
 }
+
 
 
 // Start previewing
@@ -944,7 +950,6 @@ CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd)
 
 	// Add the video capture filter to the graph with its friendly name
 		hr = pFg->AddFilter(pVCap, wachFriendlyName);
-
 	if (hr != NOERROR)
 	{
 		OutputDebugString(TEXT("Error %x: Cannot add vidcap to filtergraph"));
@@ -1172,6 +1177,10 @@ InitCapFiltersFail:
 }
 
 
+CAMERAPREVIEWDLL_API void capture_from_still_pin()
+{
+
+}
 // all done with the capture filters and the graph builder
 //
 void FreeCapFilters()

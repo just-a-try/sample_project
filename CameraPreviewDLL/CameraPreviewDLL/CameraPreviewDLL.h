@@ -52,3 +52,4 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam);
  HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum);
  BOOL DisplayDeviceInformation(IEnumMoniker *pEnum, HWND hwnd);
  double get_gcd(double num1, double num2);
+ CAMERAPREVIEWDLL_API void capture_from_still_pin();
