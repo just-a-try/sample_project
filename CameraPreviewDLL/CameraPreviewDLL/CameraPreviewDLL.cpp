@@ -273,7 +273,7 @@ CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, double Width, double Height)
 	{
 		RECT rcSrc, rcDest;
 		// Set the source rectangle.
-		SetRect(&rcSrc, 0, 64, 1280, 591);
+		SetRect(&rcSrc, 0, 0, (int)lWidth, (int)lHeight);
 
 		// Set the destination rectangle.
 		SetRect(&rcDest, 0, 0, Width, Height);
@@ -289,56 +289,66 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 {
 	int mouse_wheel_value = HIWORD(wParam);
 	int Wdiff_source_dest, Hdiff_source_dest, Width, Height;
-	static int zoom_in_factor = 2;
-
-	//long Width = lWidth, Height = lHeight;
+	static int zoom_in_factor = 2, zoom_out_factor;
+	static int x_axis, y_axis;
 	if (mouse_wheel_value == 120)
 	{
-		//HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
-		/*if (SUCCEEDED(hr))
-		{*/
-		/*if (zoom_in_factor <= 8)
-		{*/
+		if (zoom_in_factor <= 8)
+		{
 			RECT rcSrc, rcDest;
 			// Get the window client area.
-			
-			/*Width = ZWidth / 2;
-			Height = ZHeight / 2;
+			Width = ZWidth / zoom_in_factor;
+			Height = ZHeight / zoom_in_factor;
 			Wdiff_source_dest = 1280 - Width;
 			Hdiff_source_dest = 720 - Height;
-			zoom_in_factor *= 2;*/
+			x_axis = Wdiff_source_dest / 2;
+			y_axis = Hdiff_source_dest / 2;
+			zoom_in_factor *= 2;
 			// Set the source rectangle.
-			SetRect(&rcSrc, 360, 212, 640, 295);
+			SetRect(&rcSrc, x_axis, y_axis, (1280 - x_axis), (720 - y_axis));
+
 			GetClientRect(hWnd, &rcDest);
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 			// Set the video position.
 			HRESULT hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
-			int a = 0;
-		//}
+			//zoom_out_factor = zoom_in_factor;
+		}
 		//}
 	}
-	else if(mouse_wheel_value > 120)
+	else if (mouse_wheel_value > 120)
 	{
-		//long lWidth, lHeight;
-		//HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
-		/*if (SUCCEEDED(hr))
-		{*/
+		
+		zoom_out_factor = zoom_in_factor / 4;
+		if (zoom_out_factor > 1)
+		{
+			Width = ZWidth / zoom_out_factor;
+			Height = ZHeight / zoom_out_factor;
+			Wdiff_source_dest = 1280 - Width;
+			Hdiff_source_dest = 720 - Height;
+			x_axis = Wdiff_source_dest / 2;
+			y_axis = Hdiff_source_dest / 2;
+			zoom_in_factor /= 2;
 			RECT rcSrc, rcDest;
 			// Get the window client area.
 			GetClientRect(hWnd, &rcDest);
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
-			/*ZWidth *= 2;
-			ZHeight *= 2;*/
-			/*Wdiff_source_dest = lWidth - ZWidth;
-			Hdiff_source_dest = lHeight - ZHeight;*/
 
-			SetRect(&rcSrc, 0, 0, ZWidth, ZHeight);
-		    //SetRect(&rcSrc, (int)(Wdiff_source_dest / 2), (int)(Hdiff_source_dest / 2), ZWidth, ZHeight);
-			
+			SetRect(&rcSrc, x_axis, y_axis, (1280 - x_axis), (720 - y_axis));
+
 			// Set the video position.
 			g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+		}
+		else
+		{
+			zoom_in_factor = 2;
+			RECT rcSrc, rcDest;
+			GetClientRect(hWnd, &rcDest);
+			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
+			SetRect(&rcSrc, 0, 0, ZWidth, ZHeight);
+			g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+		}
 		//}
 	}
 
