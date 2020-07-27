@@ -10,6 +10,8 @@
 #define CAMERAPREVIEWDLL_API __declspec(dllimport)
 #endif
 
+#pragma warning(disable : 4996)
+
 #include <Windows.h>
 #include <dshow.h>
 #include <dbt.h>
@@ -22,9 +24,12 @@
 #include <strsafe.h>
 #include <dshowutil.h>
 #include "SampleCGB.h"
+#include "qedit.h"
 
-//#include "crossbar.h"
-//#include "wxlist.h"
+#define mouse_wheel 120
+#define source_imgage_width 1280
+#define source_imgage_height 720
+
 
 // This class is exported from the dll
 class CAMERAPREVIEWDLL_API CCameraPreviewDLL {
@@ -52,4 +57,4 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam);
  HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum);
  BOOL DisplayDeviceInformation(IEnumMoniker *pEnum, HWND hwnd);
  double get_gcd(double num1, double num2);
- CAMERAPREVIEWDLL_API void capture_from_still_pin();
+ CAMERAPREVIEWDLL_API bool capture_from_still_pin();

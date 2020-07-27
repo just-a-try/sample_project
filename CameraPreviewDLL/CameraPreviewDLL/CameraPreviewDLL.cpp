@@ -4,7 +4,6 @@
 #include "pch.h"
 #include "framework.h"
 
-
 #ifdef  DEBUG
 #define REGISTER_FILTERGRAPH
 #endif
@@ -85,6 +84,9 @@ HWND ghwndApp = 0, ghwndStatus = 0, hWnd;
 HDEVNOTIFY ghDevNotify = 0;
 long lWidth, lHeight;
 long ZWidth, ZHeight;
+AM_MEDIA_TYPE g_StillMediaType;
+ISampleGrabber *pSG = NULL;
+
 
 //PUnregisterDeviceNotification gpUnregisterDeviceNotification = 0;
 //PRegisterDeviceNotification gpRegisterDeviceNotification = 0;
@@ -107,7 +109,69 @@ CCameraPreviewDLL::CCameraPreviewDLL()
 
 #define ABS(x) (((x) > 0) ? (x) : -(x))
 
+class SampleGrabberCallback : public ISampleGrabberCB
+{
+public:
+	// Fake referance counting.
+	STDMETHODIMP_(ULONG) AddRef() { return 1; }
+	STDMETHODIMP_(ULONG) Release() { return 2; }
 
+	STDMETHODIMP QueryInterface(REFIID riid, void **ppvObject)
+	{
+		if (NULL == ppvObject) return E_POINTER;
+		if (riid == __uuidof(IUnknown))
+		{
+			*ppvObject = static_cast<IUnknown*>(this);
+			return S_OK;
+		}
+		if (riid == __uuidof(ISampleGrabberCB))
+		{
+			*ppvObject = static_cast<ISampleGrabberCB*>(this);
+			return S_OK;
+		}
+		return E_NOTIMPL;
+	}
+
+	STDMETHODIMP SampleCB(double Time, IMediaSample *pSample)
+	{
+		return E_NOTIMPL;
+	}
+
+	STDMETHODIMP BufferCB(double Time, BYTE *pBuffer, long BufferLen)
+	{
+		if ((g_StillMediaType.majortype != MEDIATYPE_Video) ||
+			(g_StillMediaType.formattype != FORMAT_VideoInfo) ||
+			(g_StillMediaType.cbFormat < sizeof(VIDEOINFOHEADER)) ||
+			(g_StillMediaType.pbFormat == NULL))
+		{
+			return VFW_E_INVALIDMEDIATYPE;
+		}
+		HANDLE hf = CreateFile(L"D:\\Example.bmp", GENERIC_WRITE,
+			FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, 0, NULL);
+		if (hf == INVALID_HANDLE_VALUE)
+		{
+			return E_FAIL;
+		}
+		long cbBitmapInfoSize = g_StillMediaType.cbFormat - SIZE_PREHEADER;
+		VIDEOINFOHEADER *pVideoHeader =
+			(VIDEOINFOHEADER*)g_StillMediaType.pbFormat;
+
+		BITMAPFILEHEADER bfh;
+		ZeroMemory(&bfh, sizeof(bfh));
+		bfh.bfType = 'MB';  // Little-endian for "BM".
+		bfh.bfSize = sizeof(bfh) + BufferLen + cbBitmapInfoSize;
+		bfh.bfOffBits = sizeof(BITMAPFILEHEADER) + cbBitmapInfoSize;
+
+		// Write the file header.
+		DWORD dwWritten = 0;
+		WriteFile(hf, &bfh, sizeof(bfh), &dwWritten, NULL);
+		WriteFile(hf, HEADER(pVideoHeader), cbBitmapInfoSize, &dwWritten, NULL);
+		WriteFile(hf, pBuffer, BufferLen, &dwWritten, NULL);
+		CloseHandle(hf);
+		return S_OK;
+
+	}
+};
 
  HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum)
 {
@@ -257,13 +321,13 @@ CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, double Width, double Height)
 	if (d_ratio > 1)
 	{
 		size_reduce = lHeight - (lWidth / d_ratio);
-		lHeight = lHeight - size_reduce;
+		lHeight = (long)(lHeight - size_reduce);
 
 	}
 	else if(d_ratio < 1)
 	{
 		size_reduce = lWidth - (lHeight * d_ratio);
-		lWidth = lWidth - size_reduce;
+		lWidth = (long)(lWidth - size_reduce);
 	}
 	
 	ZWidth = lWidth;
@@ -291,41 +355,37 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 	int Wdiff_source_dest, Hdiff_source_dest, Width, Height;
 	static int zoom_in_factor = 2, zoom_out_factor;
 	static int x_axis, y_axis;
-	if (mouse_wheel_value == 120)
+	if (mouse_wheel_value == mouse_wheel)
 	{
 		if (zoom_in_factor <= 8)
 		{
 			RECT rcSrc, rcDest;
-			// Get the window client area.
 			Width = ZWidth / zoom_in_factor;
 			Height = ZHeight / zoom_in_factor;
-			Wdiff_source_dest = 1280 - Width;
-			Hdiff_source_dest = 720 - Height;
+			Wdiff_source_dest = source_imgage_width - Width;
+			Hdiff_source_dest = source_imgage_height - Height;
 			x_axis = Wdiff_source_dest / 2;
 			y_axis = Hdiff_source_dest / 2;
 			zoom_in_factor *= 2;
 			// Set the source rectangle.
-			SetRect(&rcSrc, x_axis, y_axis, (1280 - x_axis), (720 - y_axis));
+			SetRect(&rcSrc, x_axis, y_axis, (source_imgage_width - x_axis), (source_imgage_height - y_axis));
 
 			GetClientRect(hWnd, &rcDest);
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 			// Set the video position.
 			HRESULT hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
-			//zoom_out_factor = zoom_in_factor;
 		}
-		//}
 	}
-	else if (mouse_wheel_value > 120)
+	else if (mouse_wheel_value > mouse_wheel)
 	{
-		
 		zoom_out_factor = zoom_in_factor / 4;
 		if (zoom_out_factor > 1)
 		{
 			Width = ZWidth / zoom_out_factor;
 			Height = ZHeight / zoom_out_factor;
-			Wdiff_source_dest = 1280 - Width;
-			Hdiff_source_dest = 720 - Height;
+			Wdiff_source_dest = source_imgage_width - Width;
+			Hdiff_source_dest = source_imgage_height - Height;
 			x_axis = Wdiff_source_dest / 2;
 			y_axis = Hdiff_source_dest / 2;
 			zoom_in_factor /= 2;
@@ -335,7 +395,7 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 
-			SetRect(&rcSrc, x_axis, y_axis, (1280 - x_axis), (720 - y_axis));
+			SetRect(&rcSrc, x_axis, y_axis, (source_imgage_width - x_axis), (source_imgage_height - y_axis));
 
 			// Set the video position.
 			g_pWc->SetVideoPosition(&rcSrc, &rcDest);
@@ -349,7 +409,6 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 			SetRect(&rcSrc, 0, 0, ZWidth, ZHeight);
 			g_pWc->SetVideoPosition(&rcSrc, &rcDest);
 		}
-		//}
 	}
 
 	return TRUE;
@@ -459,9 +518,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 	// We don't have the necessary capture filters
 	if (pVCap == NULL)
 		return FALSE;
-	if (pACap == NULL && fCapAudio)
-		return FALSE;
-
+	
 	// we already have another graph built... tear down the old one
 	if (fCaptureGraphBuilt)
 		TearDownGraph();
@@ -558,205 +615,111 @@ BOOL BuildPreviewGraph(HWND hwnd)
 			}
 		}
 
-		//
-		// Render the closed captioning pin? It could be a CC or a VBI category pin,
-		// depending on the capture driver
-		//
-
-		/*if (fCapCC)
-		{
-			hr = pBuilder->RenderStream(&PIN_CATEGORY_CC, NULL,
-				pVCap, NULL, NULL);
-			if (hr != NOERROR)
-			{
-				hr = pBuilder->RenderStream(&PIN_CATEGORY_VBI, NULL,
-					pVCap, NULL, NULL);
-				if (hr != NOERROR)
-				{
-					OutputDebugString(TEXT("Cannot render closed captioning"));
-				}
-			}
-		}*/
 	}
 
-	//
-	// Get the preview window to be a child of our app's window
-	//
-
-	// This will find the IVideoWindow interface on the renderer.  It is
-	// important to ask the filtergraph for this interface... do NOT use
-	// ICaptureGraphBuilder2::FindInterface, because the filtergraph needs to
-	// know we own the window so it can give us display changed messages, etc.
-
-	//hr = pFg->QueryInterface(IID_IVideoWindow, (void **)&pVW);
-	//if (hr != NOERROR)
-	//{
-	//	OutputDebugString(TEXT("This graph cannot preview properly"));
-	//}
-	//else
-	//{
-	//	//Find out if this is a DV stream
-	//	AM_MEDIA_TYPE * pmtDV;
-
-	//	if (pVSC && SUCCEEDED(pVSC->GetFormat(&pmtDV)))
-	//	{
-	//		if (pmtDV->formattype == FORMAT_DvInfo)
-	//		{
-	//			// in this case we want to set the size of the parent window to that of
-	//			// current DV resolution.
-	//			// We get that resolution from the IVideoWindow.
-	//			SmartPtr<IBasicVideo> pBV;
-
-	//			// If we got here, pVW is not NULL 
-	//			ASSERT(pVW != NULL);
-	//			hr = pVW->QueryInterface(IID_IBasicVideo, (void**)&pBV);
-
-	//			if (SUCCEEDED(hr))
-	//			{
-	//				HRESULT hr1, hr2;
-	//				long lWidth, lHeight;
-
-	//				hr1 = pBV->get_VideoHeight(&lHeight);
-	//				hr2 = pBV->get_VideoWidth(&lWidth);
-	//				
-	//			}
-	//		}
-	//	}
-
-		// hr = CoCreateInstance(CLSID_VideoMixingRenderer, NULL,
-		//	CLSCTX_INPROC, IID_IBaseFilter, (void**)&pVmr);
-
-		//if (hr != NOERROR)
-		//{
-		//	OutputDebugString(TEXT("This graph cannot preview properly"));
-		//}
-
-		//hr = pFg->AddFilter(pVmr, L"Video Mixing Renderer");
-		//if (FAILED(hr))
-		//{
-		//	pVmr->Release();
-		//	return hr;
-		//}
-
-		//// Set the rendering mode.  
-		//IVMRFilterConfig* pConfig;
-		//hr = pVmr->QueryInterface(IID_IVMRFilterConfig, (void**)&pConfig);
-		//if (SUCCEEDED(hr))
-		//{
-		//	hr = pConfig->SetRenderingMode(VMRMode_Windowless);
-		//	pConfig->Release();
-		//}
-		//if (SUCCEEDED(hr))
-		//{
-		//	// Set the window. 
-		//	hr = pVmr->QueryInterface(IID_IVMRWindowlessControl, (void**)&pWc);
-
-		//	if (SUCCEEDED(hr))
-		//	{
-		//		hr = pWc->SetVideoClippingWindow(hwnd);
-		//		if (SUCCEEDED(hr))
-		//		{
-		//			g_pWc = pWc; // Return this as an AddRef'd pointer. 
-		//		}
-		//		else
-		//		{
-		//			// An error occurred, so release the interface.
-		//			pWc->Release();
-		//		}
-		//	}
-		//}
-
-		//hr = pFg->QueryInterface(IID_IVMRWindowlessControl, (void **)&g_pWc);
-		//if (hr != NOERROR)
-		//{
-		//	OutputDebugString(TEXT("This graph cannot preview properly"));
-		//}
-
-		//RECT rc;
-		//TEXTMETRIC tm;
-		//HDC hdc = GetDC(NULL);
-		//GetTextMetrics(hdc, &tm);
-
-		//int gStatusStdHeight = tm.tmHeight * 3 / 2;
-		//pVW->put_Owner((OAHWND)hwnd);    // We own the window now
-		//pVW->put_WindowStyle(WS_CHILD);    // you are now a child
-
-		//// give the preview window all our space but where the status bar is
-		//GetClientRect(hwnd, &rc);
-		//cyBorder = GetSystemMetrics(SM_CYBORDER);
-		//cy = gStatusStdHeight + cyBorder;
-		////rc.bottom -= cy;
-
-		//pVW->SetWindowPosition(0, 0, rc.right, rc.bottom); // be this big
-		//pVW->put_FullScreenMode(OATRUE);
-		//pVW->put_Visible(OATRUE);
-
-		long lWidth, lHeight;
-	    hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
-		if (SUCCEEDED(hr))
-		{
-			RECT rcSrc, rcDest;
-			// Set the source rectangle.
-			SetRect(&rcSrc, 0, 0, lWidth, lHeight);
-
-			// Get the window client area.
-			GetClientRect(hwnd, &rcDest);
-			// Set the destination rectangle.
-			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
-
-			// Set the video position.
-			hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
-		}
 	
 
-	// now tell it what frame rate to capture at.  Just find the format it
-	// is capturing with, and leave everything alone but change the frame rate
-	// No big deal if it fails.  It's just for preview
-	// !!! Should we then talk to the preview pin?
+	// Add the Sample Grabber filter to the graph.
+	IBaseFilter *pSG_Filter;
+	hr = CoCreateInstance(
+		CLSID_SampleGrabber,
+		NULL,
+		CLSCTX_INPROC_SERVER,
+		IID_IBaseFilter,
+		(void**)&pSG_Filter
+	);
 
-	//if (pVSC && fUseFrameRate)
-	//{
-	//	hr = pVSC->GetFormat(&pmt);
-
-	//	// DV capture does not use a VIDEOINFOHEADER
-	//	if (hr == NOERROR)
-	//	{
-	//		if (pmt->formattype == FORMAT_VideoInfo)
-	//		{
-	//			VIDEOINFOHEADER *pvi = (VIDEOINFOHEADER *)pmt->pbFormat;
-	//			pvi->AvgTimePerFrame = (LONGLONG)(10000000 / FrameRate);
-
-	//			hr = pVSC->SetFormat(pmt);
-	//			if (hr != NOERROR)
-	//				OutputDebugString(L"%x: Cannot set frame rate for preview");
-	//		}
-	//		DeleteMediaType(pmt);
-	//	}
-	//}
-
-	// make sure we process events while we're previewing!
-
-	//hr = pFg->QueryInterface(IID_IMediaEventEx, (void **)&pME);
-
-	/*if (hr == NOERROR)
+	if (FAILED(hr))
 	{
-		pME->SetNotifyWindow((OAHWND)ghwndApp, WM_FGNOTIFY, 0);
-	}*/
+		OutputDebugString(TEXT("Error in CoCreateInstance CLSID_SampleGrabber!"));
+		return FALSE;
+	}
 
-	// potential debug output - what the graph looks like
-	// DumpGraph(pFg, 1);
+	hr = pFg->AddFilter(pSG_Filter, L"SampleGrab");
 
-	// Add our graph to the running object table, which will allow
-	// the GraphEdit application to "spy" on our graph
-//#ifdef REGISTER_FILTERGRAPH
-//	hr = AddGraphToRot(pFg, &g_dwGraphRegister);
-//	if (FAILED(hr))
-//	{
-//		OutputDebugString(TEXT("Failed to register filter graph with ROT!  hr=0x%x"));
-//		g_dwGraphRegister = 0;
-//	}
-//#endif
+	if (FAILED(hr))
+	{
+		OutputDebugString(TEXT("Error in adding Sample Grabber filter!"));
+		return FALSE;
+	}
+	// Add the Null Renderer filter to the graph.
+	IBaseFilter *pNull;
 
+	hr = CoCreateInstance(
+		CLSID_NullRenderer,
+		NULL,
+		CLSCTX_INPROC_SERVER,
+		IID_IBaseFilter,
+		(void**)&pNull
+	);
+
+	if (FAILED(hr))
+	{
+		OutputDebugString(TEXT("Error in render RenderStream Sample Grabber!"));
+		return FALSE;
+	}
+
+	hr = pFg->AddFilter(pNull, L"NullRender");
+
+	if (FAILED(hr))
+	{
+		OutputDebugString(TEXT("Error in adding NullRender filter!"));
+	}
+
+	hr = pBuilder->RenderStream(
+		&PIN_CATEGORY_STILL, // Connect this pin ...
+		&MEDIATYPE_Video,    // with this media type ...
+		pVCap,                // on this filter ...
+		pSG_Filter,          // to the Sample Grabber ...
+		pNull);              // ... and finally to the Null Renderer.
+
+	if (FAILED(hr))
+	{
+		OutputDebugString(TEXT("Error in render RenderStream Sample Grabber!"));
+	}
+
+
+	hr = pSG_Filter->QueryInterface(IID_ISampleGrabber, (void**)&pSG);
+
+	if (FAILED(hr))
+	{
+		OutputDebugString(TEXT("Error in QueryInterface  Sample Grabber!"));
+		return FALSE;
+	}
+
+	/*hr = pSG->SetOneShot(FALSE);
+
+	hr = pSG->SetBufferSamples(TRUE);
+
+	SampleGrabberCallback g_StillCapCB;
+
+	hr = pSG->SetCallback(&g_StillCapCB, 0);
+
+	hr = pSG->GetConnectedMediaType(&g_StillMediaType);
+
+	hr = pSG->SetCallback(&g_StillCapCB, 1);
+
+	pSG->Release();
+
+	FreeMediaType(g_StillMediaType);*/
+
+	long lWidth, lHeight;
+	hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+	if (SUCCEEDED(hr))
+	{
+		RECT rcSrc, rcDest;
+		// Set the source rectangle.
+		SetRect(&rcSrc, 0, 0, lWidth, lHeight);
+
+		// Get the window client area.
+		GetClientRect(hwnd, &rcDest);
+		// Set the destination rectangle.
+		SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
+
+		// Set the video position.
+		hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+	}
+	
 	// All done.
 	fPreviewGraphBuilt = TRUE;
 	return TRUE;
@@ -836,16 +799,6 @@ CAMERAPREVIEWDLL_API BOOL StopPreview()
 //
 BOOL MakeBuilder()
 {
-	////// we have one already
-	////if (pBuilder)
-	////	return TRUE;
-
-	//////pBuilder = new I()/*;*/
-
-	//if (NULL == pBuilder)
-	//{
-	//	return FALSE;
-	//}
 	CoInitialize(NULL);
 	HRESULT hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER,
 		IID_ICaptureGraphBuilder2, (void**)&pBuilder);
@@ -1003,32 +956,6 @@ CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd)
 		}
 	}
 
-	//fCapAudioIsRelevant = TRUE;
-
-	//AM_MEDIA_TYPE *pmt;
-
-	//// default capture format
-	//if (pVSC && pVSC->GetFormat(&pmt) == S_OK)
-	//{
-	//	// DV capture does not use a VIDEOINFOHEADER
-	//	if (pmt->formattype == FORMAT_VideoInfo)
-	//	{
-	//		// resize our window to the default capture size
-	//		ResizeWindow(HEADER(pmt->pbFormat)->biWidth,
-	//			ABS(HEADER(pmt->pbFormat)->biHeight));
-	//	}
-	//	if (pmt->majortype != MEDIATYPE_Video)
-	//	{
-	//		// This capture filter captures something other that pure video.
-	//		// Maybe it's DV or something?  Anyway, chances are we shouldn't
-	//		// allow capturing audio separately, since our video capture
-	//		// filter may have audio combined in it already!
-	//		fCapAudioIsRelevant = FALSE;
-	//		fCapAudio = FALSE;
-	//	}
-	//	DeleteMediaType(pmt);
-	//}
-
 	// we use this interface to bring up the 3 dialogs
 	// NOTE:  Only the VfW capture filter supports this.  This app only brings
 	// up dialogs for legacy VfW capture drivers, since only those have dialogs
@@ -1036,126 +963,6 @@ CAMERAPREVIEWDLL_API BOOL InitCapFilters(HWND hwnd)
 		&MEDIATYPE_Video, pVCap,
 		IID_IAMVfwCaptureDialogs, (void **)&pDlg);
 
-	// Use the crossbar class to help us sort out all the possible video inputs
-	// The class needs to be given the capture filters ANALOGVIDEO input pin
-	//{
-	//	IPin        *pP = 0;
-	//	IEnumPins   *pins = 0;
-	//	ULONG        n;
-	//	PIN_INFO     pinInfo;
-	//	BOOL         Found = FALSE;
-	//	IKsPropertySet *pKs = 0;
-	//	GUID guid;
-	//	DWORD dw;
-	//	BOOL fMatch = FALSE;
-
-	//	pCrossbar = NULL;
-
-	//	if (SUCCEEDED(pVCap->EnumPins(&pins)))
-	//	{
-	//		while (!Found && (S_OK == pins->Next(1, &pP, &n)))
-	//		{
-	//			if (S_OK == pP->QueryPinInfo(&pinInfo))
-	//			{
-	//				if (pinInfo.dir == PINDIR_INPUT)
-	//				{
-	//					// is this pin an ANALOGVIDEOIN input pin?
-	//					if (pP->QueryInterface(IID_IKsPropertySet,
-	//						(void **)&pKs) == S_OK)
-	//					{
-	//						if (pKs->Get(AMPROPSETID_Pin,
-	//							AMPROPERTY_PIN_CATEGORY, NULL, 0,
-	//							&guid, sizeof(GUID), &dw) == S_OK)
-	//						{
-	//							if (guid == PIN_CATEGORY_ANALOGVIDEOIN)
-	//								fMatch = TRUE;
-	//						}
-	//						pKs->Release();
-	//					}
-
-	//					if (fMatch)
-	//					{
-	//						HRESULT hrCreate = S_OK;
-	//						pCrossbar = new CCrossbar(pP, &hrCreate);
-	//						if (!pCrossbar || FAILED(hrCreate))
-	//							break;
-
-	//						hr = pCrossbar->GetInputCount(&NumberOfVideoInputs);
-	//						Found = TRUE;
-	//					}
-	//				}
-	//				pinInfo.pFilter->Release();
-	//			}
-	//			pP->Release();
-	//		}
-	//		pins->Release();
-	//	}
-	//}
-
-
-
-
-	//hr = pmAudio->BindToObject(0, 0, IID_IBaseFilter, (void**)&pACap);
-
-	//if (pACap == NULL)
-	//{
-	//	// there are no audio capture devices. We'll only allow video capture
-	//	fCapAudio = FALSE;
-	//	OutputDebugString(TEXT("Cannot create audio capture filter"));
-	//	goto SkipAudio;
-	//}
-
-	////
-	//// put the audio capture filter in the graph
-	////
-	//{
-	//	WCHAR wachAudioFriendlyName[256];
-	//	IPropertyBag *pBag;
-
-	//	wachAudioFriendlyName[0] = 0;
-
-	//	// Read the friendly name of the filter to assist with remote graph
-	//	// viewing through GraphEdit
-	//	hr = pmAudio->BindToStorage(0, 0, IID_IPropertyBag, (void **)&pBag);
-	//	if (SUCCEEDED(hr))
-	//	{
-	//		VARIANT var;
-	//		var.vt = VT_BSTR;
-
-	//		hr = pBag->Read(L"FriendlyName", &var, NULL);
-	//		if (hr == NOERROR)
-	//		{
-	//			hr = StringCchCopyW(wachAudioFriendlyName, 256, var.bstrVal);
-	//			SysFreeString(var.bstrVal);
-	//		}
-
-	//		pBag->Release();
-	//	}
-
-	//	// We'll need this in the graph to get audio property pages
-	//	hr = pFg->AddFilter(pACap, wachAudioFriendlyName);
-	//	if (hr != NOERROR)
-	//	{
-	//		OutputDebugString(TEXT("Error %x: Cannot add audio capture filter to filtergraph"));
-	//		goto InitCapFiltersFail;
-	//	}
-	//}
-
-	//// Calling FindInterface below will result in building the upstream
-	//// section of the capture graph (any WDM TVAudio's or Crossbars we might
-	//// need).
-
-	//// !!! What if this interface isn't supported?
-	//// we use this interface to set the captured wave format
-	//hr = pBuilder->FindInterface(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Audio, pACap,
-	//	IID_IAMStreamConfig, (void **)&pASC);
-
-	//if (hr != NOERROR)
-	//{
-	//	OutputDebugString(TEXT("Cannot find ACapture:IAMStreamConfig"));
-	//}
-
-//SkipAudio:
 
 	// Can this filter do closed captioning?
 	IPin *pPin;
@@ -1187,21 +994,137 @@ InitCapFiltersFail:
 }
 
 
-CAMERAPREVIEWDLL_API void capture_from_still_pin()
+CAMERAPREVIEWDLL_API bool capture_from_still_pin()
 {
+	//IAMVideoControl *pAMVidControl = NULL;
 
+	//HRESULT hr = pVCap->QueryInterface(IID_IAMVideoControl, (void**)&pAMVidControl);
+
+	//if (SUCCEEDED(hr))
+	//{
+	//	// Find the still pin.
+	//	IPin *pPin = NULL;
+
+	//	// pBuild is an ICaptureGraphBuilder2 pointer.
+
+	//	hr = pBuilder->FindPin(
+	//		pVCap,                  // Filter.
+	//		PINDIR_OUTPUT,         // Look for an output pin.
+	//		&PIN_CATEGORY_STILL,   // Pin category.
+	//		NULL,                  // Media type (don't care).
+	//		FALSE,                 // Pin must be unconnected.
+	//		0,                     // Get the 0'th pin.
+	//		&pPin                  // Receives a pointer to thepin.
+	//	);
+
+	//	if (SUCCEEDED(hr))
+	//	{
+	//		hr = pAMVidControl->SetMode(pPin, VideoControlFlag_Trigger);
+	//		pPin->Release();
+	//	}
+
+	//	pAMVidControl->Release();
+	//}
+
+	//// Add the Sample Grabber filter to the graph.
+	//IBaseFilter *pSG_Filter;
+	//hr = CoCreateInstance(
+	//	CLSID_SampleGrabber,
+	//	NULL,
+	//	CLSCTX_INPROC_SERVER,
+	//	IID_IBaseFilter,
+	//	(void**)&pSG_Filter
+	//);
+
+	//if (FAILED(hr))
+	//{
+	//	OutputDebugString(TEXT("Error in CoCreateInstance CLSID_SampleGrabber!"));
+	//	return FALSE;
+	//}
+
+	//hr = pFg->AddFilter(pSG_Filter, L"SampleGrab");
+
+	//if (FAILED(hr))
+	//{
+	//	OutputDebugString(TEXT("Error in adding Sample Grabber filter!"));
+	//	return FALSE;
+	//}
+	//// Add the Null Renderer filter to the graph.
+	//IBaseFilter *pNull;
+
+	//hr = CoCreateInstance(
+	//	CLSID_NullRenderer,
+	//	NULL,
+	//	CLSCTX_INPROC_SERVER,
+	//	IID_IBaseFilter,
+	//	(void**)&pNull
+	//);
+
+	//if (FAILED(hr))
+	//{
+	//	OutputDebugString(TEXT("Error in render RenderStream Sample Grabber!"));
+	//	return FALSE;
+	//}
+
+	//hr = pFg->AddFilter(pNull, L"NullRender");
+
+	//if (FAILED(hr))
+	//{
+	//	OutputDebugString(TEXT("Error in adding NullRender filter!"));
+	//}
+
+	//hr = pBuilder->RenderStream(
+	//	&PIN_CATEGORY_STILL, // Connect this pin ...
+	//	&MEDIATYPE_Video,    // with this media type ...
+	//	pVCap,                // on this filter ...
+	//	pSG_Filter,          // to the Sample Grabber ...
+	//	pNull);              // ... and finally to the Null Renderer.
+
+	//if (FAILED(hr))
+	//{
+	//	OutputDebugString(TEXT("Error in render RenderStream Sample Grabber!"));
+	//}
+
+	//ISampleGrabber *pSG = NULL;
+
+	//hr = pSG_Filter->QueryInterface(IID_ISampleGrabber, (void**)&pSG);
+	//	
+	//if (FAILED(hr))
+	//{
+	//	OutputDebugString(TEXT("Error in QueryInterface  Sample Grabber!"));
+	//	return FALSE;
+	//}
+
+	HRESULT hr = pSG->SetOneShot(FALSE);
+
+	hr = pSG->SetBufferSamples(TRUE);
+
+	SampleGrabberCallback g_StillCapCB;
+
+	hr = pSG->SetCallback(&g_StillCapCB, 0);
+
+	hr = pSG->GetConnectedMediaType(&g_StillMediaType);
+
+	hr = pSG->SetCallback(&g_StillCapCB, 1);
+
+	pSG->Release();
+
+	FreeMediaType(g_StillMediaType);
+
+	return TRUE;
 }
 // all done with the capture filters and the graph builder
 //
 void FreeCapFilters()
 {
 	SAFE_RELEASE(pFg);
+
 	if (pBuilder)
 	{
 		delete pBuilder;
 		pBuilder = NULL;
 	}
-	SAFE_RELEASE(pVCap);
+	//SAFE_RELEASE(pVCap);
 	SAFE_RELEASE(pACap);
 	SAFE_RELEASE(pASC);
 	SAFE_RELEASE(pVSC);
