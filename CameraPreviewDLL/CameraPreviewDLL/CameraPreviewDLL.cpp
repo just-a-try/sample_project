@@ -3,11 +3,9 @@
 
 #include "pch.h"
 #include "framework.h"
-
-#ifdef  DEBUG
-#define REGISTER_FILTERGRAPH
-#endif
-
+#include<iostream>
+#include <vector>
+using namespace std;
 #pragma comment(lib, "strmiids")
 #include "CameraPreviewDLL.h"
 
@@ -706,34 +704,6 @@ BOOL BuildPreviewGraph(HWND hwnd)
 
 	}
 
-	IAMStreamConfig *pfConfig = NULL;
-	hr = pBuilder->FindInterface(
-		&PIN_CATEGORY_STILL, 
-		0,    
-		pVCap,
-		IID_IAMStreamConfig, (void**)&pfConfig);
-
-	int iCount = 0, iSize = 0;
-	hr = pfConfig->GetNumberOfCapabilities(&iCount, &iSize);
-
-	if (iSize == sizeof(VIDEO_STREAM_CONFIG_CAPS))
-	{
-
-		for (int iFormat = 0; iFormat < iCount; iFormat++)
-		{
-			VIDEO_STREAM_CONFIG_CAPS scc;
-			AM_MEDIA_TYPE *pmtConfig;
-			hr = pfConfig->GetStreamCaps(iFormat, &pmtConfig, (BYTE*)&scc);
-			if (SUCCEEDED(hr))
-			{
-
-				//VIDEOINFOHEADER *pVih = (VIDEOINFOHEADER*)pmtConfig.pbFormat;
-				DeleteMediaType(pmtConfig);
-			}
-		}
-	}
-
-
 	long lWidth, lHeight;
 	hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
 	if (SUCCEEDED(hr))
@@ -757,7 +727,44 @@ BOOL BuildPreviewGraph(HWND hwnd)
 	return TRUE;
 }
 
+CAMERAPREVIEWDLL_API vector<string> format_resolution_enum(vector<string> &formats, SIZE &max, SIZE &min)
+{
+	int iCount = 0, iSize = 0;
+	//vector <string> formats;
+	IAMStreamConfig *pfConfig = NULL;
+	HRESULT hr = pBuilder->FindInterface(
+		&PIN_CATEGORY_STILL,
+		0,
+		pVCap,
+		IID_IAMStreamConfig, (void**)&pfConfig);
 
+	hr = pfConfig->GetNumberOfCapabilities(&iCount, &iSize);
+
+	if (iSize == sizeof(VIDEO_STREAM_CONFIG_CAPS))
+	{
+		for (int iFormat = 0; iFormat < iCount; iFormat++)
+		{
+			VIDEO_STREAM_CONFIG_CAPS scc;
+			AM_MEDIA_TYPE *pmtConfig;
+
+			hr = pfConfig->GetStreamCaps(iFormat, &pmtConfig, (BYTE*)&scc);
+			if (SUCCEEDED(hr))
+			{
+				if (pmtConfig->subtype == MEDIASUBTYPE_MJPG)
+				{
+					formats.push_back("MJPEG");
+					formats.push_back("MJPEG");
+					max = scc.MaxOutputSize;
+					min = scc.MinOutputSize;
+				}
+				//VIDEOINFOHEADER *pVih = (VIDEOINFOHEADER*)pmtConfig.pbFormat;
+				DeleteMediaType(pmtConfig);
+			}
+		}
+	}
+
+	return formats;
+}
 
 // Start previewing
 //
