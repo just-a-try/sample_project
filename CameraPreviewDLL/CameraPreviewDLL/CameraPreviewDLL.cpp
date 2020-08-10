@@ -4,6 +4,9 @@
 #include "pch.h"
 #include "framework.h"
 #include<iostream>
+#include "fourcc.h"
+#include "Streams.h"
+#include "Wxdebug.h"
 #include <vector>
 using namespace std;
 #pragma comment(lib, "strmiids")
@@ -12,7 +15,7 @@ using namespace std;
 #define REGISTER_FILTERGRAPH
 
 IMoniker *pMoniker = NULL;
-WCHAR wszCaptureFile[_MAX_PATH];
+WCHAR wszCaptureFile[MAX_PATH];
 WORD wCapFileSize;  // size in Meg
 //ISampleCaptureGraphBuilder *pBuilder;
 ICaptureGraphBuilder2 *pBuilder;
@@ -730,8 +733,10 @@ BOOL BuildPreviewGraph(HWND hwnd)
 CAMERAPREVIEWDLL_API vector<string> format_resolution_enum(vector<string> &formats, SIZE &max, SIZE &min)
 {
 	int iCount = 0, iSize = 0;
-	//vector <string> formats;
+	CHAR pszValue[5];
+	VIDEOINFOHEADER *pVih = NULL;
 	IAMStreamConfig *pfConfig = NULL;
+	IEnumMediaTypes *pEnum = NULL;
 	HRESULT hr = pBuilder->FindInterface(
 		&PIN_CATEGORY_STILL,
 		0,
@@ -739,6 +744,22 @@ CAMERAPREVIEWDLL_API vector<string> format_resolution_enum(vector<string> &forma
 		IID_IAMStreamConfig, (void**)&pfConfig);
 
 	hr = pfConfig->GetNumberOfCapabilities(&iCount, &iSize);
+
+	IPin *pPin = NULL;
+
+	// pBuild is an ICaptureGraphBuilder2 pointer.
+
+	hr = pBuilder->FindPin(
+		pVCap,                  // Filter.
+		PINDIR_OUTPUT,         // Look for an output pin.
+		&PIN_CATEGORY_STILL,   // Pin category.
+		NULL,                  // Media type (don't care).
+		FALSE,                 // Pin must be unconnected.
+		0,                     // Get the 0'th pin.
+		&pPin                  // Receives a pointer to thepin.
+	);
+
+	hr = pPin->EnumMediaTypes(&pEnum);
 
 	if (iSize == sizeof(VIDEO_STREAM_CONFIG_CAPS))
 	{
@@ -752,10 +773,89 @@ CAMERAPREVIEWDLL_API vector<string> format_resolution_enum(vector<string> &forma
 			{
 				if (pmtConfig->subtype == MEDIASUBTYPE_MJPG)
 				{
-					formats.push_back("MJPEG");
-					formats.push_back("MJPEG");
+				
+					*((UINT32*)pszValue) = pmtConfig->subtype.Data1;
+					pszValue[4] = 0;
+					OutputDebugStringA(pszValue);
+					formats.push_back(pszValue);
+					//pVih = (VIDEOINFOHEADER*)pmtConfig->pbFormat;
+					//// pVih contains the detailed format information.
+					//LONG lWidth = pVih->bmiHeader.biWidth;
+					//LONG lHeight = pVih->bmiHeader.biHeight;
+
+					if ((pmtConfig->formattype == FORMAT_VideoInfo) &&
+						(pmtConfig->cbFormat >= sizeof(VIDEOINFOHEADER)) &&
+						(pmtConfig->pbFormat != NULL))
+					{
+						pVih = (VIDEOINFOHEADER*)pmtConfig->pbFormat;
+						// pVih contains the detailed format information.
+						LONG lWidth = pVih->bmiHeader.biWidth;
+						LONG lHeight = pVih->bmiHeader.biHeight;
+					}
+
+					FreeMediaType(*pmtConfig);
+					
+					/*formats.push_back(pszValue);
 					max = scc.MaxOutputSize;
-					min = scc.MinOutputSize;
+					min = scc.MinOutputSize;*/
+				}
+				else if (pmtConfig->subtype == MEDIASUBTYPE_YUYV)
+				{
+					*((UINT32*)pszValue) = pmtConfig->subtype.Data1;
+					pszValue[4] = 0;
+					OutputDebugStringA(pszValue);
+					formats.push_back(pszValue);
+				}
+				else if (pmtConfig->subtype == MEDIASUBTYPE_YUY2)
+				{
+					*((UINT32*)pszValue) = pmtConfig->subtype.Data1;
+					pszValue[4] = 0;
+					OutputDebugStringA(pszValue);
+					formats.push_back(pszValue);
+					if ((pmtConfig->formattype == FORMAT_VideoInfo) &&
+						(pmtConfig->cbFormat >= sizeof(VIDEOINFOHEADER)) &&
+						(pmtConfig->pbFormat != NULL))
+					{
+						pVih = (VIDEOINFOHEADER*)pmtConfig->pbFormat;
+						// pVih contains the detailed format information.
+						LONG lWidth = pVih->bmiHeader.biWidth;
+						LONG lHeight = pVih->bmiHeader.biHeight;
+					}
+				}
+				else if (pmtConfig->subtype == MEDIASUBTYPE_YVYU)
+				{
+					*((UINT32*)pszValue) = pmtConfig->subtype.Data1;
+					pszValue[4] = 0;
+					OutputDebugStringA(pszValue);
+					formats.push_back(pszValue);
+				}
+				else if (pmtConfig->subtype == MEDIASUBTYPE_RGB4)
+				{
+					*((UINT32*)pszValue) = pmtConfig->subtype.Data1;
+					pszValue[4] = 0;
+					OutputDebugStringA(pszValue);
+					formats.push_back(pszValue);
+				}
+				else if (pmtConfig->subtype == MEDIASUBTYPE_RGB8)
+				{
+					*((UINT32*)pszValue) = pmtConfig->subtype.Data1;
+					pszValue[4] = 0;
+					OutputDebugStringA(pszValue);
+					formats.push_back(pszValue);
+				}
+				else if (pmtConfig->subtype == MEDIASUBTYPE_RGB24)
+				{
+					*((UINT32*)pszValue) = pmtConfig->subtype.Data1;
+					pszValue[4] = 0;
+					OutputDebugStringA(pszValue);
+					formats.push_back(pszValue);
+				}
+				else if (pmtConfig->subtype == MEDIASUBTYPE_RGB32)
+				{
+					*((UINT32*)pszValue) = pmtConfig->subtype.Data1;
+					pszValue[4] = 0;
+					OutputDebugStringA(pszValue);
+					formats.push_back(pszValue);
 				}
 				//VIDEOINFOHEADER *pVih = (VIDEOINFOHEADER*)pmtConfig.pbFormat;
 				DeleteMediaType(pmtConfig);
