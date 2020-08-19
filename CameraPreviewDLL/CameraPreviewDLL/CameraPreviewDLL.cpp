@@ -4,6 +4,7 @@
 #include "pch.h"
 #include "framework.h"
 #include<iostream>
+#include "Commctrl.h"
 #include "fourcc.h"
 #include "Streams.h"
 #include "Wxdebug.h"
@@ -313,7 +314,12 @@ double get_gcd(double num1, double num2)
 
 CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, double Width, double Height)
 {
-	HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+	//HRESULT hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+	RECT rc;
+	GetClientRect(hwnd, &rc);
+	lWidth = rc.right;
+	lHeight = rc.bottom;
+
 	double s_ratio = (double)lWidth / (double)lHeight;
 	double d_ratio = Width / Height;
 
@@ -338,18 +344,19 @@ CAMERAPREVIEWDLL_API BOOL Resize(HWND hwnd, double Width, double Height)
 	ZWidth = lWidth;
 	ZHeight = lHeight;
 
-	if (SUCCEEDED(hr))
-	{
-		RECT rcSrc, rcDest;
-		// Set the source rectangle.
-		SetRect(&rcSrc, 0, 0, (int)lWidth, (int)lHeight);
+	pVW->SetWindowPosition(0, 0, lWidth, lHeight);
+	//if (SUCCEEDED(hr))
+	//{
+	//	RECT rcSrc, rcDest;
+	//	// Set the source rectangle.
+	//	SetRect(&rcSrc, 0, 0, (int)lWidth, (int)lHeight);
 
-		// Set the destination rectangle.
-		SetRect(&rcDest, 0, 0, Width, Height);
+	//	// Set the destination rectangle.
+	//	SetRect(&rcDest, 0, 0, Width, Height);
 
-		// Set the video position.
-		hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
-	}
+	//	// Set the video position.
+	//	hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+	//}
 	
 	return TRUE;
 }
@@ -360,6 +367,7 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 	int Wdiff_source_dest, Hdiff_source_dest, Width, Height;
 	static int zoom_in_factor = 2, zoom_out_factor;
 	static int x_axis, y_axis;
+	HRESULT hr;
 	if (mouse_wheel_value == mouse_wheel)
 	{
 		if (zoom_in_factor <= 8)
@@ -379,7 +387,9 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 			// Set the destination rectangle.
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 			// Set the video position.
-			HRESULT hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+			//hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+			hr = pVW->SetWindowPosition(0, 0, rcSrc.right, rcSrc.bottom);
+
 		}
 	}
 	else if (mouse_wheel_value > mouse_wheel)
@@ -403,7 +413,8 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 			SetRect(&rcSrc, x_axis, y_axis, (source_imgage_width - x_axis), (source_imgage_height - y_axis));
 
 			// Set the video position.
-			g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+			//g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+			hr = pVW->SetWindowPosition(0, 0, rcSrc.right, rcSrc.bottom);
 		}
 		else
 		{
@@ -412,7 +423,8 @@ CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam)
 			GetClientRect(hWnd, &rcDest);
 			SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
 			SetRect(&rcSrc, 0, 0, ZWidth, ZHeight);
-			g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+			//g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+			hr = pVW->SetWindowPosition(0, 0, rcSrc.right, rcSrc.bottom);
 		}
 	}
 
@@ -576,7 +588,7 @@ BOOL BuildPreviewGraph(HWND hwnd)
 	}
 
 	hr = pBuilder->RenderStream(
-		&PIN_CATEGORY_STILL, // Connect this pin ...
+		&PIN_CATEGORY_CAPTURE, // Connect this pin ...
 		&MEDIATYPE_Video,    // with this media type ...
 		pVCap,                // on this filter ...
 		pSG_Filter,          // to the Sample Grabber ...
@@ -620,110 +632,124 @@ BOOL BuildPreviewGraph(HWND hwnd)
 	// if BOTH exist, it's a DV filter and the only way to get the audio is to use
 	// the interleaved pin.  Using the Video pin on a DV filter is only useful if
 	// you don't want the audio.
-	hr = CoCreateInstance(CLSID_VideoMixingRenderer, NULL,
-		CLSCTX_INPROC, IID_IBaseFilter, (void**)&pVmr);
+	//hr = CoCreateInstance(CLSID_VideoMixingRenderer, NULL,
+	//	CLSCTX_INPROC, IID_IBaseFilter, (void**)&pVmr);
 
-	if (hr != NOERROR)
-	{
-		OutputDebugString(TEXT("This graph cannot preview properly"));
-	}
+	//if (hr != NOERROR)
+	//{
+	//	OutputDebugString(TEXT("This graph cannot preview properly"));
+	//}
 
-	hr = pFg->AddFilter(pVmr, L"Video Mixing Renderer");
+	//hr = pFg->AddFilter(pVmr, L"Video Mixing Renderer");
 
-	if (FAILED(hr))
-	{
-		pVmr->Release();
-		return hr;
-	}
+	//if (FAILED(hr))
+	//{
+	//	pVmr->Release();
+	//	return hr;
+	//}
 
-	// Set the rendering mode.  
-	IVMRFilterConfig* pConfig;
-	hr = pVmr->QueryInterface(IID_IVMRFilterConfig, (void**)&pConfig);
+	//// Set the rendering mode.  
+	//IVMRFilterConfig* pConfig;
+	//hr = pVmr->QueryInterface(IID_IVMRFilterConfig, (void**)&pConfig);
 
-	if (SUCCEEDED(hr))
-	{
-		hr = pConfig->SetRenderingMode(VMRMode_Windowless);
-		pConfig->Release();
-	}
-	if (SUCCEEDED(hr))
-	{
-		// Set the window. 
-		hr = pVmr->QueryInterface(IID_IVMRWindowlessControl, (void**)&pWc);
+	//if (SUCCEEDED(hr))
+	//{
+	//	hr = pConfig->SetRenderingMode(VMRMode_Windowless);
+	//	pConfig->Release();
+	//}
+	//if (SUCCEEDED(hr))
+	//{
+	//	// Set the window. 
+	//	hr = pVmr->QueryInterface(IID_IVMRWindowlessControl, (void**)&pWc);
 
-		if (SUCCEEDED(hr))
-		{
-			hr = pWc->SetVideoClippingWindow(hwnd);
+	//	if (SUCCEEDED(hr))
+	//	{
+	//		hr = pWc->SetVideoClippingWindow(hwnd);
 
-			if (SUCCEEDED(hr))
-			{
-				g_pWc = pWc; // Return this as an AddRef'd pointer. 
-			}
-			else
-			{
-				// An error occurred, so release the interface.
-				pWc->Release();
-			}
-		}
-	}
+	//		if (SUCCEEDED(hr))
+	//		{
+	//			g_pWc = pWc; // Return this as an AddRef'd pointer. 
+	//		}
+	//		else
+	//		{
+	//			// An error occurred, so release the interface.
+	//			pWc->Release();
+	//		}
+	//	}
+	//}
 
-	if (fMPEG2)
-	{
-		hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
-			&MEDIATYPE_Stream, pVCap, NULL, pVmr);
+	//if (fMPEG2)
+	//{
+	//	hr = pBuilder->RenderStream(&PIN_CATEGORY_CAPTURE,
+	//		&MEDIATYPE_Stream, pVCap, NULL, pVmr);
 
-		if (FAILED(hr))
-		{
-			OutputDebugString(TEXT("Cannot build MPEG2 preview graph!"));
-		}
-	}
-	else
-	{
-		hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
-			&MEDIATYPE_Interleaved, pVCap, NULL, pVmr);
+	//	if (FAILED(hr))
+	//	{
+	//		OutputDebugString(TEXT("Cannot build MPEG2 preview graph!"));
+	//	}
+	//}
+	//else
+	//{
+	//	hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
+	//		&MEDIATYPE_Interleaved, pVCap, NULL, pVmr);
 
-		if (hr == VFW_S_NOPREVIEWPIN)
-		{
-			// preview was faked up for us using the (only) capture pin
-			fPreviewFaked = TRUE;
-		}
-		else if (hr != S_OK)
-		{
-			// maybe it's DV?
-			hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
-				&MEDIATYPE_Video, pVCap, NULL, pVmr);
+	//	if (hr == VFW_S_NOPREVIEWPIN)
+	//	{
+	//		// preview was faked up for us using the (only) capture pin
+	//		fPreviewFaked = TRUE;
+	//	}
+	//	else if (hr != S_OK)
+	//	{
+	//		// maybe it's DV?
+	//		hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
+	//			&MEDIATYPE_Video, pVCap, NULL, pVmr);
 
-			if (hr == VFW_S_NOPREVIEWPIN)
-			{
-				// preview was faked up for us using the (only) capture pin
-				fPreviewFaked = TRUE;
-			}
-			else if (hr != S_OK)
-			{
-				//OutputDebugString(TEXT("This graph cannot preview!"));
-				fPreviewGraphBuilt = FALSE;
-				return FALSE;
-			}
-		}
+	//		if (hr == VFW_S_NOPREVIEWPIN)
+	//		{
+	//			// preview was faked up for us using the (only) capture pin
+	//			fPreviewFaked = TRUE;
+	//		}
+	//		else if (hr != S_OK)
+	//		{
+	//			//OutputDebugString(TEXT("This graph cannot preview!"));
+	//			fPreviewGraphBuilt = FALSE;
+	//			return FALSE;
+	//		}
+	//	}
 
-	}
+	//}
+	hr = pBuilder->RenderStream(&PIN_CATEGORY_PREVIEW,
+		&MEDIATYPE_Video, pVCap, NULL, NULL);
+
+	hr = pFg->QueryInterface(IID_IVideoWindow, (void **)&pVW);
 
 	long lWidth, lHeight;
-	hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
-	if (SUCCEEDED(hr))
-	{
-		RECT rcSrc, rcDest;
-		// Set the source rectangle.
-		SetRect(&rcSrc, 0, 0, lWidth, lHeight);
 
-		// Get the window client area.
-		GetClientRect(hwnd, &rcDest);
-		// Set the destination rectangle.
-		SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
+	//hr = pVW->GetWindowPosition(NULL, NULL, &lWidth, &lHeight);
 
-		// Set the video position.
-		hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
-	}
+	RECT rc;
+	pVW->put_Owner((OAHWND)hwnd);    // We own the window now
+	pVW->put_WindowStyle(WS_CHILD);    // you are now a child
 	
+	//hr = g_pWc->GetNativeVideoSize(&lWidth, &lHeight, NULL, NULL);
+	//if (SUCCEEDED(hr))
+	//{
+	//	RECT rcSrc, rcDest;
+	//	// Set the source rectangle.
+	//	SetRect(&rcSrc, 0, 0, lWidth, lHeight);
+
+	//	// Get the window client area.
+	//	GetClientRect(hwnd, &rcDest);
+	//	// Set the destination rectangle.
+	//	SetRect(&rcDest, 0, 0, rcDest.right, rcDest.bottom);
+
+	//	// Set the video position.
+	//	hr = g_pWc->SetVideoPosition(&rcSrc, &rcDest);
+	//}
+	GetClientRect(hwnd, &rc);
+
+	pVW->SetWindowPosition(0, 0, rc.right, rc.bottom); // be this big
+	pVW->put_Visible(OATRUE);
 	
 	// All done.
 	fPreviewGraphBuilt = TRUE;
@@ -736,30 +762,40 @@ CAMERAPREVIEWDLL_API vector<string> format_resolution_enum(vector<string> &forma
 	CHAR pszValue[5];
 	VIDEOINFOHEADER *pVih = NULL;
 	IAMStreamConfig *pfConfig = NULL;
-	IEnumMediaTypes *pEnum = NULL;
+	IAMVideoControl *pAMVidControl = NULL;
+	SIZE FrameSize;
+	LONGLONG *lFrameRate = NULL;
+	long lListSize = 0;
+
 	HRESULT hr = pBuilder->FindInterface(
-		&PIN_CATEGORY_STILL,
-		0,
+		&PIN_CATEGORY_CAPTURE,
+		&MEDIATYPE_Video,
 		pVCap,
 		IID_IAMStreamConfig, (void**)&pfConfig);
 
 	hr = pfConfig->GetNumberOfCapabilities(&iCount, &iSize);
 
-	IPin *pPin = NULL;
+	IPin *pin = NULL;
 
 	// pBuild is an ICaptureGraphBuilder2 pointer.
 
 	hr = pBuilder->FindPin(
 		pVCap,                  // Filter.
 		PINDIR_OUTPUT,         // Look for an output pin.
-		&PIN_CATEGORY_STILL,   // Pin category.
-		NULL,                  // Media type (don't care).
-		FALSE,                 // Pin must be unconnected.
+		0,   // Pin category.
+		0,                  // Media type (don't care).
+		TRUE,                 // Pin must be unconnected.
 		0,                     // Get the 0'th pin.
-		&pPin                  // Receives a pointer to thepin.
+		&pin                  // Receives a pointer to thepin.
 	);
 
-	hr = pPin->EnumMediaTypes(&pEnum);
+	hr = pVCap->QueryInterface(IID_IAMVideoControl, (void**)&pAMVidControl);
+
+	if (FAILED(hr))    // FAILED is a macro that tests the return value
+	{
+		OutputDebugStr(L"Could not query interface for IAMVideoControl\n");
+	}
+
 
 	if (iSize == sizeof(VIDEO_STREAM_CONFIG_CAPS))
 	{
@@ -769,11 +805,11 @@ CAMERAPREVIEWDLL_API vector<string> format_resolution_enum(vector<string> &forma
 			AM_MEDIA_TYPE *pmtConfig;
 
 			hr = pfConfig->GetStreamCaps(iFormat, &pmtConfig, (BYTE*)&scc);
+
 			if (SUCCEEDED(hr))
 			{
 				if (pmtConfig->subtype == MEDIASUBTYPE_MJPG)
 				{
-				
 					*((UINT32*)pszValue) = pmtConfig->subtype.Data1;
 					pszValue[4] = 0;
 					OutputDebugStringA(pszValue);
@@ -783,15 +819,27 @@ CAMERAPREVIEWDLL_API vector<string> format_resolution_enum(vector<string> &forma
 					//LONG lWidth = pVih->bmiHeader.biWidth;
 					//LONG lHeight = pVih->bmiHeader.biHeight;
 
-					if ((pmtConfig->formattype == FORMAT_VideoInfo) &&
-						(pmtConfig->cbFormat >= sizeof(VIDEOINFOHEADER)) &&
-						(pmtConfig->pbFormat != NULL))
+					FrameSize.cx = scc.InputSize.cx;
+					FrameSize.cy = scc.InputSize.cy;
+
+
+					hr = pAMVidControl->GetFrameRateList(pin, iFormat, FrameSize, &lListSize, &lFrameRate);
+
+					for (long lIndex = 0; lIndex < lListSize; lIndex++)
 					{
-						pVih = (VIDEOINFOHEADER*)pmtConfig->pbFormat;
-						// pVih contains the detailed format information.
-						LONG lWidth = pVih->bmiHeader.biWidth;
-						LONG lHeight = pVih->bmiHeader.biHeight;
+						LONG lWidth = scc.InputSize.cx;
+						LONG lHeight = scc.InputSize.cy;
 					}
+
+					//if ((pmtConfig->formattype == FORMAT_VideoInfo) &&
+					//	(pmtConfig->cbFormat >= sizeof(VIDEOINFOHEADER)) &&
+					//	(pmtConfig->pbFormat != NULL))
+					//{
+					//	pVih = (VIDEOINFOHEADER*)pmtConfig->pbFormat;
+					//	// pVih contains the detailed format information.
+					//	LONG lWidth = pVih->bmiHeader.biWidth;
+					//	LONG lHeight = pVih->bmiHeader.biHeight;
+					//}
 
 					FreeMediaType(*pmtConfig);
 					
@@ -812,15 +860,26 @@ CAMERAPREVIEWDLL_API vector<string> format_resolution_enum(vector<string> &forma
 					pszValue[4] = 0;
 					OutputDebugStringA(pszValue);
 					formats.push_back(pszValue);
-					if ((pmtConfig->formattype == FORMAT_VideoInfo) &&
-						(pmtConfig->cbFormat >= sizeof(VIDEOINFOHEADER)) &&
-						(pmtConfig->pbFormat != NULL))
+					FrameSize.cx = scc.InputSize.cx;
+					FrameSize.cy = scc.InputSize.cy;
+
+					pAMVidControl->GetFrameRateList(pin, iFormat, FrameSize, &lListSize, &lFrameRate);
+
+					for (long lIndex = 0; lIndex < lListSize; lIndex++)
 					{
-						pVih = (VIDEOINFOHEADER*)pmtConfig->pbFormat;
-						// pVih contains the detailed format information.
-						LONG lWidth = pVih->bmiHeader.biWidth;
-						LONG lHeight = pVih->bmiHeader.biHeight;
+						LONG lWidth = scc.InputSize.cx;
+						LONG lHeight = scc.InputSize.cy;
 					}
+
+					//if ((pmtConfig->formattype == FORMAT_VideoInfo) &&
+					//	(pmtConfig->cbFormat >= sizeof(VIDEOINFOHEADER)) &&
+					//	(pmtConfig->pbFormat != NULL))
+					//{
+					//	pVih = (VIDEOINFOHEADER*)pmtConfig->pbFormat;
+					//	// pVih contains the detailed format information.
+					//	LONG lWidth = pVih->bmiHeader.biWidth;
+					//	LONG lHeight = pVih->bmiHeader.biHeight;
+					//}
 				}
 				else if (pmtConfig->subtype == MEDIASUBTYPE_YVYU)
 				{
@@ -863,9 +922,65 @@ CAMERAPREVIEWDLL_API vector<string> format_resolution_enum(vector<string> &forma
 		}
 	}
 
+	
+
 	return formats;
 }
 
+CAMERAPREVIEWDLL_API bool Get_UVC_values(long *brightness, long *contrast, long *white_balance)
+{
+	IAMVideoProcAmp  *pVideoProc = 0;
+	HRESULT hr = pVCap->QueryInterface(IID_IAMVideoProcAmp, (void**)&pVideoProc);
+	if (FAILED(hr))
+	{
+		OutputDebugStr(L"Could not query interface for IAMCameraControl\n");
+		return FALSE;
+	}
+	else
+	{
+		long Flags;
+		
+		hr = pVideoProc->Get(VideoProcAmp_Brightness, brightness, &Flags);
+		if (FAILED(hr))
+		{
+			OutputDebugStr(L"Getting brightness value failed\n");
+		}
+		
+		hr = pVideoProc->Get(VideoProcAmp_Contrast, contrast, &Flags);
+		if (FAILED(hr))
+		{
+			OutputDebugStr(L"Getting contrast value failed\n");
+		}
+		
+		hr = pVideoProc->Get(VideoProcAmp_WhiteBalance, white_balance, &Flags);
+		if (FAILED(hr))
+		{
+			OutputDebugStr(L"Getting white balance value failed\n");
+		}
+	}
+	return TRUE;
+}
+
+CAMERAPREVIEWDLL_API bool UVC_Settings_config(int property, int mode, long value)
+{
+	//HWND hTrackbar;
+
+	IAMCameraControl *pCamCtrl = 0;
+	HRESULT hr = pVCap->QueryInterface(IID_IAMVideoProcAmp, (void**)&pCamCtrl);
+	if (FAILED(hr))
+	{
+		OutputDebugStr(L"Could not query interface for IID_IAMVideoProcAmp\n");
+	}
+	else
+	{
+		hr = pCamCtrl->Set(property, value, mode);
+		if (FAILED(hr))
+		{
+			OutputDebugStr(L"Could not set brightness\n");
+		}
+	}
+	return TRUE;
+}
 // Start previewing
 //
 CAMERAPREVIEWDLL_API BOOL StartPreview()

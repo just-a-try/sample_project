@@ -10,6 +10,8 @@
 #define CAMERAPREVIEWDLL_API __declspec(dllimport)
 #endif
 
+#pragma warning(disable : 4996)
+
 #include <Windows.h>
 #include <dshow.h>
 #include <dbt.h>
@@ -22,7 +24,8 @@
 #include <strsafe.h>
 #include <dshowutil.h>
 #include "SampleCGB.h"
-
+#include<vector>
+using namespace std;
 //#include "crossbar.h"
 //#include "wxlist.h"
 
@@ -51,3 +54,7 @@ CAMERAPREVIEWDLL_API BOOL EnumarateCamera(HWND hwnd);
 CAMERAPREVIEWDLL_API BOOL zoom_in_and_out(WPARAM wParam);
  HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum);
  BOOL DisplayDeviceInformation(IEnumMoniker *pEnum, HWND hwnd);
+ CAMERAPREVIEWDLL_API bool capture_from_still_pin();
+ CAMERAPREVIEWDLL_API vector<string> format_resolution_enum(vector<string> &formats, SIZE &max, SIZE &min);
+ CAMERAPREVIEWDLL_API bool UVC_Settings_config(int property, int mode, long value);
+ CAMERAPREVIEWDLL_API bool Get_UVC_values(long *brightness, long *contrast, long *white_balance);
